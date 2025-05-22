@@ -73,8 +73,8 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'mmg_backend_app.urls'
 
-GDAL_LIBRARY_PATH = '/opt/homebrew/Cellar/gdal/3.11.0/lib/libgdal.37.3.11.0.dylib' 
-GEOS_LIBRARY_PATH = '/opt/homebrew/Cellar/geos/3.13.0/lib/libgeos_c.dylib'
+GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH') 
+GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH')
 
 DEFF_SALT=config('ENCRYPTED_FILEFIELD_SALT') 
 DEFF_PASSWORD=config('ENCRYPTED_FILEFIELD_KEY')
