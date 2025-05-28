@@ -109,7 +109,7 @@ db_config = dj_database_url.config(
 )
 
 # Override agar menggunakan PostGIS engine GeoDjango
-db_config['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
+db_config['ENGINE'] = config('DATABASE_ENGINE', default='django.contrib.gis.db.backends.postgis')
 
 DATABASES = {
     'default': db_config,
