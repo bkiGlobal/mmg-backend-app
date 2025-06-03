@@ -23,7 +23,7 @@ class SignatureOnDocumentInline(nested_admin.NestedTabularInline):
 
 @admin.register(Document)
 class DocumentAdmin(nested_admin.NestedModelAdmin):
-    list_display  = ('project', 'document_name', 'document_type', 'status', 'issue_date', 'DueDate')
+    list_display  = ('project', 'document_name', 'document_type', 'status', 'issue_date', 'due_date')
     list_filter   = ('project', 'document_type', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level')
     search_fields = ('project__project_name', 'document_name')
     fields        = ('project', 'document_name', 'document_type', 'status', 'approval_required', 'approval_level', 'issue_date', 'due_date')
@@ -106,7 +106,7 @@ class WorkMethodAdmin(nested_admin.NestedModelAdmin):
 class DocumentInline(nested_admin.NestedTabularInline):
     model           = Document
     extra           = 0
-    fields          = ('document_name', 'document_type', 'status', 'approval_required', 'approval_level', 'issue_date', 'DueDate')
+    fields          = ('document_name', 'document_type', 'status', 'approval_required', 'approval_level', 'issue_date', 'due_date')
     inlines         = [DocumentVersionInline, SignatureOnDocumentInline]
 
 class DeflectInline(nested_admin.NestedTabularInline):
@@ -130,7 +130,7 @@ class WorkMethodInline(nested_admin.NestedTabularInline):
 class SubContractorOnProjectInline(nested_admin.NestedTabularInline):
     model   = SubContractorOnProject
     extra   = 0
-    fields  = ('sub_contractor', 'start_date', 'end_date', 'notes')
+    fields  = ('subcon', 'is_active', 'descriptions')
     inlines = [SubContractorWorkerInline]
 
 @admin.register(Project)

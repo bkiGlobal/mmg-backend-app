@@ -69,7 +69,7 @@ class ToolOnProjectInline(nested_admin.NestedTabularInline):
 class ToolAdmin(nested_admin.NestedModelAdmin):
     list_display  = ('name', 'category', 'serial_number', 'amount', 'available')
     inlines       = [ToolOnProjectInline]
-    fields        = ('name', 'category', 'serial_number', 'conditions', 'amount', 'avalable')
+    fields        = ('name', 'category', 'serial_number', 'conditions', 'amount', 'available')
     list_filter   = ('category', ('amount', NumericRangeFilter), ('available', NumericRangeFilter))
     search_fields = ('name', 'serial_number', 'conditions')
 

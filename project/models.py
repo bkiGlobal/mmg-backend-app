@@ -149,7 +149,7 @@ class Document(AuditModel):
     approval_required = models.BooleanField(default=True)
     approval_level = models.CharField(max_length=20, choices=ApprovalLevel.choices, null=True, blank=True)
     issue_date = models.DateField()
-    DueDate = models.DateField()
+    due_date = models.DateField()
 
     def __str__(self) -> str:
         return f'{self.project.project_name} {self.document_name}'

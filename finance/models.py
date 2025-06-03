@@ -3,6 +3,7 @@ import os
 import uuid
 from django.db import models
 from core.models import AuditModel
+from django.db.models import Sum
 from inventory.models import UnitType, Material
 from project.models import DocumentStatus, Project
 from team.models import Signature, upload_signature_proof
@@ -52,6 +53,17 @@ class BillOfQuantity(AuditModel):
     @property
     def project_name(self):
         return self.project.project_name
+    
+    def recalc_total(self):
+        """
+        Hitung ulang total dari semua detail di bawah objek BOQ ini.
+        """
+        # Kita perlu menjumlahkan `total_price` semua BillOfQuantityItemDetail
+        agg = BillOfQuantityItemDetail.objects.filter(
+            bill_of_quantity_item__bill_of_quantity=self
+        ).aggregate(sum_total=Sum('total_price'))
+        self.total = agg['sum_total'] or 0.0
+        self.save(update_fields=['total'])
 
 class BillOfQuantityItem(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -77,6 +89,14 @@ class BillOfQuantityItemDetail(AuditModel):
 
     def __str__(self) -> str:
         return f'{self.bill_of_quantity_item.title} {self.description}'
+    
+    def save(self, *args, **kwargs):
+        self.total_price = (self.quantity or 0) * (self.unit_price or 0)
+        super().save(*args, **kwargs)
+
+        # 2) Setelah detail tersimpan, hitung ulang total di header (BOQ)
+        boq = self.bill_of_quantity_item.bill_of_quantity
+        boq.recalc_total()
 
 class SignatureOnBillOfQuantity(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
