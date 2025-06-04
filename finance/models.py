@@ -121,6 +121,20 @@ class ExpenseOnProject(AuditModel):
     @property
     def project_name(self):
         return self.project.project_name
+    
+    def recalc_total(self):
+        """
+        Hitung ulang total dari semua detail di bawah objek Income ini.
+        """
+        # Kita perlu menjumlahkan `total_price` semua BillOfQuantityItemDetail
+        agg = ExpenseDetail.objects.filter(
+            expense=self
+        ).aggregate(sum_total=Sum('total'))
+        agg2 = ExpenseForMaterial.objects.filter(
+            expense=self
+        ).aggregate(sum_total=Sum('total'))
+        self.total = (agg['sum_total'] or 0.0) + (agg2['sum_total'] or 0.0)
+        self.save(update_fields=['total'])
 
 class ExpenseDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -173,6 +187,17 @@ class Income(AuditModel):
     @property
     def project_name(self):
         return self.project.project_name if self.project else None
+    
+    def recalc_total(self):
+        """
+        Hitung ulang total dari semua detail di bawah objek Income ini.
+        """
+        # Kita perlu menjumlahkan `total_price` semua BillOfQuantityItemDetail
+        agg = IncomeDetail.objects.filter(
+            income=self
+        ).aggregate(sum_total=Sum('total'))
+        self.total = agg['sum_total'] or 0.0
+        self.save(update_fields=['total'])
 
 class IncomeDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -190,3 +215,10 @@ class IncomeDetail(AuditModel):
 
     def __str__(self) -> str:
         return f'Income Detail {self.name} on {self.income.payment_date}'
+    
+    def save(self, *args, **kwargs):
+        self.total = (self.quantity or 0) * (self.unit_price or 0)
+        super().save(*args, **kwargs)
+
+        # 2) Setelah detail tersimpan, hitung ulang total di header (Income)
+        self.income.recalc_total()

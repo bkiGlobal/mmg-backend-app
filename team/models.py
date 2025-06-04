@@ -5,6 +5,7 @@ from django.db import models
 from core.models import AuditModel, Location
 from django_encrypted_filefield.fields import EncryptedImageField
 from django.contrib.gis.db import models as gis_models
+from django.conf import settings
 
 class RoleType(models.TextChoices):
     ADMIN = "admin", "Admin"
@@ -84,6 +85,7 @@ def upload_leave_request(instance, filename):
 class Profile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile', default=1)
     full_name = models.CharField(max_length=255)
     role = models.CharField(max_length=30, choices=RoleType.choices)
     gender = models.CharField(max_length=10, choices=GenderType.choices)

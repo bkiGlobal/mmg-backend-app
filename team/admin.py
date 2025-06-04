@@ -61,10 +61,10 @@ class LeaveRequestInline(admin.TabularInline):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display    = ('full_name', 'role', 'gender', 'status', 'phone_number', 'is_active')
+    list_display    = ('full_name', 'user', 'role', 'gender', 'status', 'phone_number', 'is_active')
     inlines         = [TeamMemberInline, SignatureInline, InitialInline, AttendanceInline, LeaveRequestInline]
     fields          = (
-        'location', 'full_name', 'role',
+        'location', 'user', 'full_name', 'role',
         'gender', 'status', 'birthday',
         'join_date', 'phone_number', 'profile_picture',
         'is_active'

@@ -5,7 +5,6 @@ from django.db import models
 import magic
 from core.models import AuditModel, Location
 from team.models import Team, Signature, Initial, upload_signature_proof, Profile
-from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 
 class ProjectStatus(models.TextChoices):
