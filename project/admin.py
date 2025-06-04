@@ -131,10 +131,9 @@ class SubContractorOnProjectInline(nested_admin.NestedTabularInline):
     model   = SubContractorOnProject
     extra   = 0
     fields  = ('subcon', 'is_active', 'descriptions')
-    inlines = [SubContractorWorkerInline]
 
 @admin.register(Project)
-class ProjectAdmin(admin.ModelAdmin):
+class ProjectAdmin(nested_admin.NestedModelAdmin):
     list_display   = ('project_code', 'client', 'team', 'start_date', 'end_date', 'project_status')
     list_filter    = ('project_status', 'client', 'team', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
     search_fields  = ('project_code', 'project_name', 'client__user__username', 'team__name', 'description')

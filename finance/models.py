@@ -42,7 +42,7 @@ class BillOfQuantity(AuditModel):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=DocumentStatus.choices, default=DocumentStatus.DRAFT)
     work_weight_total = models.FloatField()
-    total = models.FloatField()
+    total = models.FloatField(null=True, blank=True)
     start_date = models.DateField()
     end_date = models.DateField()
     notes = models.TextField()
@@ -111,7 +111,7 @@ class ExpenseOnProject(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_expense')
     date = models.DateField()
-    total = models.FloatField()
+    total = models.FloatField(null=True, blank=True)
     notes = models.TextField()
     photo_proof = models.ImageField(upload_to=upload_expense_proof)
 
@@ -153,6 +153,18 @@ class ExpenseDetail(AuditModel):
 
     def __str__(self) -> str:
         return f'Expense Detail {self.name} on {self.expense.project.project_name}'
+    
+    def save(self, *args, **kwargs):
+        self.subtotal = (self.quantity or 0) * (self.unit_price or 0)
+        if self.discount_type == DiscountType.PERCENTAGE:
+            self.discount_amount = (self.subtotal * self.discount) / 100
+        elif self.discount_type == DiscountType.FIXED:
+            self.discount_amount = self.discount
+        self.total = self.subtotal - self.discount_amount
+        super().save(*args, **kwargs)
+
+        # 2) Setelah detail tersimpan, hitung ulang total di header (Income)
+        self.expense.recalc_total()
 
 class ExpenseForMaterial(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -171,11 +183,23 @@ class ExpenseForMaterial(AuditModel):
     def __str__(self) -> str:
         return f'Expense Detail {self.material.name} on {self.expense.project.project_name}'
     
+    def save(self, *args, **kwargs):
+        self.subtotal = (self.quantity or 0) * (self.unit_price or 0)
+        if self.discount_type == DiscountType.PERCENTAGE:
+            self.discount_amount = (self.subtotal * self.discount) / 100
+        elif self.discount_type == DiscountType.FIXED:
+            self.discount_amount = self.discount
+        self.total = self.subtotal - self.discount_amount
+        super().save(*args, **kwargs)
+
+        # 2) Setelah detail tersimpan, hitung ulang total di header (Income)
+        self.expense.recalc_total()
+    
 class Income(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_income', null=True, blank=True)
     received_from = models.CharField(max_length=255)
-    total = models.FloatField()
+    total = models.FloatField(null=True, blank=True)
     category = models.CharField(max_length=20, choices=IncomeCategory.choices)
     payment_date = models.DateField()
     notes = models.TextField()
@@ -209,7 +233,7 @@ class IncomeDetail(AuditModel):
     subtotal = models.FloatField()
     discount = models.FloatField(default=0.0)
     discount_type = models.CharField(max_length=20, choices=DiscountType.choices, null=True, blank=True)
-    discount_amount = models.FloatField()
+    discount_amount = models.FloatField(default=0.0)
     total = models.FloatField()
     notes = models.TextField()
 
@@ -217,7 +241,12 @@ class IncomeDetail(AuditModel):
         return f'Income Detail {self.name} on {self.income.payment_date}'
     
     def save(self, *args, **kwargs):
-        self.total = (self.quantity or 0) * (self.unit_price or 0)
+        self.subtotal = (self.quantity or 0) * (self.unit_price or 0)
+        if self.discount_type == DiscountType.PERCENTAGE:
+            self.discount_amount = (self.subtotal * self.discount) / 100
+        elif self.discount_type == DiscountType.FIXED:
+            self.discount_amount = self.discount
+        self.total = self.subtotal - self.discount_amount
         super().save(*args, **kwargs)
 
         # 2) Setelah detail tersimpan, hitung ulang total di header (Income)

@@ -121,6 +121,7 @@ class IncomeDetailInline(nested_admin.NestedTabularInline):
         'total',
         'notes',
     )
+    readonly_fields = ('subtotal', 'total')
 
 @admin.register(Income)
 class IncomeAdmin(nested_admin.NestedModelAdmin):
