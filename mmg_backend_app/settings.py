@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'mapwidgets',
     'mmg_backend_app',
     'nested_admin',
     'rangefilter',
@@ -76,7 +77,25 @@ ROOT_URLCONF = 'mmg_backend_app.urls'
 
 GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH') 
 GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH')
-PROJ_LIBRARY_PATH = config('PROJ_LIBRARY_PATH')
+
+
+MAP_WIDGETS = {
+    "GoogleMap": {
+        "apiKey": config('GOOGLE_MAPS_API_KEY', default='AIzaSyDCyRAeo3m5EiItnMTjrdSTvJbBuz9jc_k'),
+        "PointField": {
+            "interactive": {
+                "mapOptions": {
+                    "zoom": 12,  # set initial zoom
+                    "streetViewControl": False,
+                },
+                "mapCenterLocationName": "Bali",
+                "GooglePlaceAutocompleteOptions": {
+                    "componentRestrictions": {"country": "id"}
+                },
+            }
+        }
+    },
+}
 
 DEFF_SALT=config('ENCRYPTED_FILEFIELD_SALT') 
 DEFF_PASSWORD=config('ENCRYPTED_FILEFIELD_KEY')

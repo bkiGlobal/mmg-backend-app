@@ -34,9 +34,20 @@ class AuditModel(models.Model):
 class Location(models.Model):
     address = gis_models.PointField()
     name = models.TextField()
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-
+    latitude  = models.FloatField(blank=True, null=True)
+    longitude = models.FloatField(blank=True, null=True)
 
     def __str__(self):
         return self.name
+    
+
+    def save(self, *args, **kwargs):
+        """
+        Selalu ekstrak (x,y) dari PointField `address` dan simpan
+        ke field `longitude` (x) dan `latitude` (y).
+        """
+        if self.address:
+            # Di GeoDjango, point.x = longitude, point.y = latitude
+            self.longitude = self.address.x
+            self.latitude  = self.address.y
+        super().save(*args, **kwargs)
