@@ -1,1 +1,9 @@
 .env
+expense_proof_photo
+income_proof_photo
+signature_photo
+initial_photo
+signature_proof_photo
+profile_photo
+attendance
+leave_request

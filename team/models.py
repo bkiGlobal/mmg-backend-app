@@ -20,6 +20,7 @@ class RoleType(models.TextChoices):
     PROJECT_ADMIN = "project_admin", "Project Admin"
     FINANCE_ADMIN = "finance_admin", "Finance Admin"
     WORKER = "worker", "Worker"
+    CLIENT = "client", "Client"
 
 class GenderType(models.TextChoices):
     MALE = "male", "Male"
@@ -30,6 +31,7 @@ class StatusType(models.TextChoices):
     RESIGN = "resign", "Resign"
     PERMANENT = "permanent", "Permanent"
     PROBATION = "probation", "Probation"
+    CLIENT = "client", "Client"
 
 class AttendanceStatus(models.TextChoices):
     ONTIME = 'Ontime', 'Ontime'
@@ -93,9 +95,12 @@ class Profile(models.Model):
     birthday = models.DateField()
     join_date = models.DateField()
     phone_number = models.CharField(max_length=20)
-    profile_picture = models.ImageField(upload_to=upload_profile_picture)
+    profile_picture = models.ImageField(upload_to=upload_profile_picture, default='default_photo/default_profile.jpeg')
     is_active = models.BooleanField(default=True)
     update_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return self.full_name
 
 # Create your models here.
 class Team(AuditModel):
