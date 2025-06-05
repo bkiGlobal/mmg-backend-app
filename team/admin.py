@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import *
-from rangefilter.filters import DateRangeFilter, NumericRangeFilter
+from rangefilter.filters import DateRangeFilter
+from django.utils.safestring import mark_safe
 
 
 # ──────────────── Team & Members ────────────────
@@ -61,7 +62,7 @@ class LeaveRequestInline(admin.TabularInline):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display    = ('full_name', 'user', 'role', 'gender', 'status', 'phone_number', 'is_active')
+    list_display    = ('full_name', 'display_photo', 'user', 'role', 'gender', 'status', 'phone_number', 'is_active')
     inlines         = [TeamMemberInline, SignatureInline, InitialInline, AttendanceInline, LeaveRequestInline]
     fields          = (
         'location', 'user', 'full_name', 'role',
@@ -72,6 +73,13 @@ class ProfileAdmin(admin.ModelAdmin):
     list_filter     = ('role', 'gender', 'status', 'is_active', ('birthday', DateRangeFilter), ('join_date', DateRangeFilter))
     search_fields   = ('full_name', 'phone_number')
     readonly_fields = ('update_at', )
+    
+    def display_photo(self, obj):
+        if obj.profile_picture:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.profile_picture.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'
 
 # ──────────────── Signature & Initial ────────────────
 

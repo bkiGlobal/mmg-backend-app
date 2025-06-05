@@ -2,11 +2,12 @@
 
 import nested_admin
 from django.contrib import admin
-
-from team.admin import SubContractorWorkerInline
 from team.models import SubContractorOnProject
 from .models import *
 from rangefilter.filters import DateRangeFilter, NumericRangeFilter
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
+
 
 # ──────────────── Document & Versions ────────────────
 
@@ -95,11 +96,18 @@ class SignatureOnWorkMethodInline(nested_admin.NestedTabularInline):
 
 @admin.register(WorkMethod)
 class WorkMethodAdmin(nested_admin.NestedModelAdmin):
-    list_display  = ('project', 'photo', 'work_title', 'document_number', 'notes')
+    list_display  = ('project', 'display_photo', 'work_title', 'document_number', 'notes')
     list_filter   = ('project',)
     search_fields = ('work_title', 'document_number', 'notes')
     fields        = ('project', 'photo', 'work_title', 'document_number', 'notes')
     inlines       = [SignatureOnWorkMethodInline]
+    
+    def display_photo(self, obj):
+        if obj.photo:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'
 
 # ──────────────── Project ────────────────
 
@@ -145,14 +153,28 @@ class ProjectAdmin(nested_admin.NestedModelAdmin):
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
-    list_display  = ('boq_item', 'start_date', 'end_date', 'duration', 'duration_type', 'status')
+    list_display  = ('boq_item', 'display_photo', 'start_date', 'end_date', 'duration', 'duration_type', 'status')
     list_filter   = ('duration_type', 'status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
     search_fields = ('boq_item__description', 'notes')
     fields        = ('boq_item', 'start_date', 'end_date', 'duration', 'duration_in_field', 'duration_for_client', 'duration_type', 'status', 'attachment', 'notes')
 
+    def display_photo(self, obj):
+        if obj.attachment:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.attachment.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'
+
 @admin.register(WeeklyReport)
 class WeeklyReportAdmin(admin.ModelAdmin):
-    list_display  = ('boq_item', 'week_number', 'report_date', 'progress_percentage')
+    list_display  = ('boq_item', 'display_photo', 'week_number', 'report_date', 'progress_percentage')
     list_filter   = ('week_number', ('report_date', DateRangeFilter), ('progress_percentage', NumericRangeFilter))
     search_fields = ('boq_item__description', 'notes')
     fields        = ('boq_item', 'week_number', 'report_date', 'progress_percentage', 'attachment', 'notes')
+
+    def display_photo(self, obj):
+        if obj.attachment:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.attachment.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'

@@ -3,6 +3,8 @@ import nested_admin
 from rangefilter.filters import DateRangeFilter, NumericRangeFilter
 from .models import *
 from project.models import Schedule
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 class ScheduleInline(nested_admin.NestedTabularInline):
     model   = Schedule
@@ -96,12 +98,19 @@ class ExpenseForMaterialInline(nested_admin.NestedTabularInline):
 
 @admin.register(ExpenseOnProject)
 class ExpenseOnProjectAdmin(nested_admin.NestedModelAdmin):
-    list_display    = ('project', 'photo_proof', 'date', 'total')
+    list_display    = ('project', 'display_photo', 'date', 'total')
     list_filter     = ('project', ('date', DateRangeFilter), ('total', NumericRangeFilter))
     search_fields   = ('project__project_name', 'notes')
     fields          = ('project', 'photo_proof', 'date', 'total', 'notes')
     readonly_fields = ('total',)
     inlines         = [ExpenseDetailInline, ExpenseForMaterialInline]
+    
+    def display_photo(self, obj):
+        if obj.photo_proof:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo_proof.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'
 
 #
 # Inlines for Income → IncomeDetail
@@ -125,9 +134,16 @@ class IncomeDetailInline(nested_admin.NestedTabularInline):
 
 @admin.register(Income)
 class IncomeAdmin(nested_admin.NestedModelAdmin):
-    list_display    = ('project', 'payment_proof', 'received_from', 'payment_date', 'category', 'total')
+    list_display    = ('project', 'display_photo', 'received_from', 'payment_date', 'category', 'total')
     list_filter     = ('project', 'category', ('payment_date', DateRangeFilter), ('total', NumericRangeFilter))
     search_fields   = ('received_from', 'notes')
     fields          = ('project', 'payment_proof', 'received_from', 'category', 'payment_date', 'total', 'notes')
     readonly_fields = ('total',)
     inlines         = [IncomeDetailInline]
+    
+    def display_photo(self, obj):
+        if obj.payment_proof:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.payment_proof.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'

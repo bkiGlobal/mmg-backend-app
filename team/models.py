@@ -95,7 +95,7 @@ class Profile(models.Model):
     birthday = models.DateField()
     join_date = models.DateField()
     phone_number = models.CharField(max_length=20)
-    profile_picture = models.ImageField(upload_to=upload_profile_picture, default='default_photo/default_profile.jpeg')
+    profile_picture = models.ImageField(upload_to=upload_profile_picture, default='default_photo/default_profile.png')
     is_active = models.BooleanField(default=True)
     update_at = models.DateTimeField(auto_now_add=True)
 
