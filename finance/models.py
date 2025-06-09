@@ -60,7 +60,7 @@ class BillOfQuantity(AuditModel):
         """
         # Kita perlu menjumlahkan `total_price` semua BillOfQuantityItemDetail
         agg = BillOfQuantityItemDetail.objects.filter(
-            bill_of_quantity_item__bill_of_quantity=self
+            bill_of_quantity_subitem__bill_of_quantity_item__bill_of_quantity=self
         ).aggregate(sum_total=Sum('total_price'))
         self.total = agg['sum_total'] or 0.0
         self.save(update_fields=['total'])
@@ -74,29 +74,48 @@ class BillOfQuantityItem(AuditModel):
 
     def __str__(self) -> str:
         return self.title
+    
+class BillOfQuantitySubItem(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    bill_of_quantity_item = models.ForeignKey(BillOfQuantityItem, on_delete=models.CASCADE, related_name='subitems')
+    item_order = models.CharField(max_length=12)
+    title = models.CharField(max_length=255)
+    notes = models.TextField()
+
+    def __str__(self) -> str:
+        return self.title
 
 class BillOfQuantityItemDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    bill_of_quantity_item = models.ForeignKey(BillOfQuantityItem, on_delete=models.CASCADE, related_name='item_details')
+    bill_of_quantity_subitem = models.ForeignKey(BillOfQuantitySubItem, on_delete=models.CASCADE, related_name='item_details')
     item_number = models.IntegerField()
     description = models.CharField(max_length=255)
     quantity = models.FloatField()
     unit_type = models.CharField(max_length=20, choices=UnitType.choices, default=UnitType.G)
     unit_price = models.FloatField()
     total_price = models.FloatField()
-    work_weight = models.FloatField()
+    work_weight = models.FloatField(blank=True, null=True)
     notes = models.TextField()
 
     def __str__(self) -> str:
-        return f'{self.bill_of_quantity_item.title} {self.description}'
+        return f'{self.bill_of_quantity_subitem.title} {self.description}'
     
     def save(self, *args, **kwargs):
         self.total_price = (self.quantity or 0) * (self.unit_price or 0)
         super().save(*args, **kwargs)
 
         # 2) Setelah detail tersimpan, hitung ulang total di header (BOQ)
-        boq = self.bill_of_quantity_item.bill_of_quantity
+        boq = self.bill_of_quantity_subitem.bill_of_quantity_item.bill_of_quantity
         boq.recalc_total()
+
+        # 3) Sekarang parent.total sudah ter‐update, hitung work_weight untuk detail ini
+        if boq.total:
+            self.work_weight = self.total_price / boq.total
+        else:
+            self.work_weight = 0.0
+
+        # 4) Simpan kembali hanya field work_weight
+        super().save(update_fields=['work_weight'])
 
 class SignatureOnBillOfQuantity(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

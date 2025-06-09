@@ -5,6 +5,7 @@ from .models import *
 from project.models import Schedule
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from .resources import *
 
 class ScheduleInline(nested_admin.NestedTabularInline):
     model   = Schedule
@@ -38,9 +39,16 @@ class BillOfQuantityItemDetailInline(nested_admin.NestedTabularInline):
     )
     readonly_fields = ('total_price',)
 
+class BillOfQuantitySubItemInline(nested_admin.NestedTabularInline):
+    model   = BillOfQuantitySubItem
+    inlines = [BillOfQuantityItemDetailInline]
+    extra   = 0
+    fields  = ('item_order', 'title', 'notes',)
+    readonly_fields = ('total_price',)
+
 class BillOfQuantityItemInline(nested_admin.NestedTabularInline):
     model   = BillOfQuantityItem
-    inlines = [BillOfQuantityItemDetailInline]
+    inlines = [BillOfQuantitySubItemInline]
     extra   = 0
     fields  = ('item_number', 'title', 'notes')
     show_change_link = True

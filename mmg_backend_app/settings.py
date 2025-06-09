@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'import_export',
     'mapwidgets',
     'mmg_backend_app',
     'nested_admin',
