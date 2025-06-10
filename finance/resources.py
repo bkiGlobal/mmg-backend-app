@@ -1,45 +1,31 @@
-from import_export import resources, fields
-from import_export.widgets import ForeignKeyWidget, FloatWidget
-
+from import_export import resources, fields, widgets
+from import_export.widgets import FloatWidget
 from finance.models import *
 
 class BillOfQuantityItemDetailResource(resources.ModelResource):
-    """
-    Resource ini digunakan untuk import baris detail. 
-    Jika parent Item‐nya belum ada, maka dibuat; 
-    jika parent SubItem belum ada, maka juga dibuat.
-    """
-
-    # Kolom kunci untuk menghubungkan ke parent BOQ (menggunakan ID Project atau ID BOQ)
-    # Misalnya kita ingin men‐link ke BOQ tertentu lewat `bill_of_quantity_id`.
-    bill_of_quantity = fields.Field(
-        column_name='BOQ_ID',  # ganti sesuai kolom di Excel; atau bisa hanya gunakan --project secara global
+    # 1) Kolom untuk cari BOQ yang sudah ada (harus disiapkan di Excel)
+    boq = fields.Field(
+        column_name='BOQ_ID',
         attribute='bill_of_quantity',
-        widget=ForeignKeyWidget(BillOfQuantity, 'id'),
+        widget=widgets.ForeignKeyWidget(BillOfQuantity, 'id'),
     )
 
-    # Kolom ‘NO’ di sheet Excel—untuk memeriksa apakah row ini detail (numeric) atau bukan
-    no = fields.Field(column_name='NO', attribute='item_number', widget=FloatWidget())
-
-    # Deskripsi detail
+    # 2) Detail fields
+    no          = fields.Field(column_name='NO', attribute='item_number', widget=FloatWidget())
     description = fields.Field(column_name='DESCRIPTION', attribute='description')
-
-    # Quantity, Unit Price, Work Weight
-    quantity   = fields.Field(column_name='QUANTITY', attribute='quantity', widget=FloatWidget())
-    unit_price = fields.Field(column_name='UNIT_PRICE', attribute='unit_price', widget=FloatWidget())
+    quantity    = fields.Field(column_name='QUANTITY', attribute='quantity', widget=FloatWidget())
+    unit_price  = fields.Field(column_name='UNIT_PRICE', attribute='unit_price', widget=FloatWidget())
     work_weight = fields.Field(column_name='WORK_WEIGHT', attribute='work_weight', widget=FloatWidget())
 
-    # Kolom untuk parent item & subitem
-    parent_item_code   = fields.Field(column_name='PARENT_ITEM', attribute='-', widget=FloatWidget())
-    parent_subitem_code = fields.Field(column_name='PARENT_SUBITEM', attribute='-', widget=ForeignKeyWidget(BillOfQuantitySubItem, 'item_order'))
-
-    # Kita set total_price di save() method model, jadi tidak perlu import kolom TOTAL_PRICE
+    # 3) Untuk membangun hierarchy parent → child
+    parent_item_code    = fields.Field(column_name='PARENT_ITEM', attribute=None)
+    parent_subitem_code = fields.Field(column_name='PARENT_SUBITEM', attribute=None)
 
     class Meta:
         model = BillOfQuantityItemDetail
-        import_id_fields = ('id',)  # atau Anda bisa gunakan kombinasi (bill_of_quantity, item_number, …)
+        # import_id_fields = ('id',)   # atau kombinasi lain jika Anda punya ID di Excel
         fields = (
-            'bill_of_quantity',
+            'boq',
             'no',
             'description',
             'quantity',
@@ -51,100 +37,88 @@ class BillOfQuantityItemDetailResource(resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
 
+    def skip_row(self, instance, original):
+        """
+        Abaikan baris yang bukan detail (misalnya baris item '2.0' atau subitem 'A').
+        Kita anggap baris detail memiliki kolom NO yang bisa di‐cast ke float
+        dan memiliki PARENT_ITEM (kode item induk).
+        """
+        no_val = original.get('NO')
+        parent_item = original.get('PARENT_ITEM')
+        try:
+            # kalau NO bukan angka, akan error
+            float(no_val)
+            # juga wajib ada parent_item
+            if parent_item in (None, '', 'nan'):
+                return True
+            return False
+        except Exception:
+            return True
+
     def before_import_row(self, row, **kwargs):
         """
-        Method ini dipanggil sebelum setiap baris di‐import. 
-        Kita cek apakah row itu benar detail (numeric NO), lalu buat parent item & subitem.
+        Pastikan parent BillOfQuantityItem & BillOfQuantitySubItem sudah ada atau dibuat.
+        (untuk baris yang lolos skip_row).
         """
+        # Pasti baris detail di sini
+        boq_id = row['BOQ_ID']
+        parent_item_code = row['PARENT_ITEM']
+        parent_sub_code  = row['PARENT_SUBITEM']
 
-        no_val = row.get('NO')
-        pid   = row.get('BOQ_ID')
-        # Jika kolom NO bukan angka, skip (bukan detail)
-        try:
-            no_float = float(no_val)
-        except (TypeError, ValueError):
-            raise resources.fields.SkipRow(f"Baris '{no_val}' bukan baris detail, dilewati.")
+        # Ambil BOQ
+        boq = BillOfQuantity.objects.get(id=boq_id)
 
-        # Pastikan kita punya objek BOQ-nya
-        try:
-            boq = BillOfQuantity.objects.get(id=pid)
-        except BillOfQuantity.DoesNotExist:
-            raise resources.fields.SkipRow(f"BOQ dengan ID {pid} tidak ditemukan.")
-
-        # 1) Buat atau ambil parent Item (BillOfQuantityItem) jika belum ada
-        parent_item_code = row.get('PARENT_ITEM')
-        # Kita anggap parent_item_code pasti numeric + ".0" → konversi ke float/int
-        try:
-            parent_item_no = float(parent_item_code)
-        except (TypeError, ValueError):
-            raise resources.fields.SkipRow(f"Parent Item '{parent_item_code}' tidak valid.")
-
+        # 1) Parent Item (create if not exists)
+        item_no = float(parent_item_code)
         item_obj, created = BillOfQuantityItem.objects.get_or_create(
             bill_of_quantity=boq,
-            item_number=parent_item_no,
-            defaults={'title': f"Item {parent_item_no}", 'notes': ''}
+            item_number=item_no,
+            defaults={'title': f"Item {item_no}", 'notes': ''}
         )
-        if created:
-            self.skip_row = False  # memastikan baris detail tetap diproses
-            self._log(f"Item baru dibuat: {item_obj} untuk BOQ {boq.id}")
 
-        # 2) Buat atau ambil parent SubItem (BillOfQuantitySubItem) jika belum ada
-        parent_subitem_code = row.get('PARENT_SUBITEM')
+        # 2) Parent SubItem (create jika belum)
         try:
-            subitem_obj, created_sub = BillOfQuantitySubItem.objects.get_or_create(
+            sub_code = str(parent_sub_code).strip()
+            sub_obj, created_sub = BillOfQuantitySubItem.objects.get_or_create(
                 bill_of_quantity_item=item_obj,
-                item_order=str(int(float(parent_subitem_code))),
-                defaults={'title': f"SubItem {parent_subitem_code}", 'notes': ''}
+                item_order=sub_code,
+                defaults={'title': f"SubItem {sub_code}", 'notes': ''}
             )
-            if created_sub:
-                self._log(f"SubItem baru dibuat: {subitem_obj} untuk Item {item_obj.id}")
-        except (TypeError, ValueError):
-            # Jika parent_subitem_code tidak ada (NaN atau string), buat satu default
-            subitem_obj = BillOfQuantitySubItem.objects.get_or_create(
+        except Exception:
+            # fallback: subitem default
+            sub_obj, created_sub = BillOfQuantitySubItem.objects.get_or_create(
                 bill_of_quantity_item=item_obj,
-                item_order="default",
-                defaults={'title': f"Default SubItem for Item {item_obj.id}", 'notes': ''}
-            )[0]
-            self._log(f"SubItem default dibuat: {subitem_obj} untuk Item {item_obj.id}")
+                item_order='default',
+                defaults={'title': 'Default SubItem', 'notes': ''}
+            )
 
-        # Simpan sementara objek parent_item dan parent_subitem di `row` agar nanti di import_row kita bisa akses
-        row['__parent_item_obj']    = item_obj
-        row['__parent_subitem_obj'] = subitem_obj
+        # Simpan parent‐parent ini untuk nanti kita gunakan di import_obj()
+        row['_boq_item']    = item_obj
+        row['_boq_subitem'] = sub_obj
 
-    def import_row(self, row, instance_loader, **kwargs):
+    def import_obj(self, row, instance_loader, **kwargs):
         """
-        Override import_row supaya kita teruskan `parent_subitem_obj` 
-        sebagai `bill_of_quantity_subitem` saat membuat detail.
+        Buat atau update BillOfQuantityItemDetail menggunakan parent yang disimpan
+        di row['_boq_subitem'].
         """
-        # Jika kita skip baris ini (bukan detail), kembalikan super().import_row
-        if getattr(self, 'skip_row', False):
-            self.skip_row = False  # reset flag
-            return super().import_row(row, instance_loader, **kwargs)
-
-        # Ambil parent subitem yang sudah kita set di before_import_row
-        subitem_obj = row.get('__parent_subitem_obj')
-        if not subitem_obj:
-            raise resources.fields.SkipRow("Parent SubItem tidak tersedia.")
-
-        # Buat atau update BillOfQuantityItemDetail
-        # Kita assign `bill_of_quantity_subitem=subitem_obj`
-        data_for_detail = {
-            'bill_of_quantity_subitem': subitem_obj,
-            'item_number': int(float(row.get('NO'))),
-            'description': row.get('DESCRIPTION'),
-            'quantity': float(row.get('QUANTITY') or 0),
-            'unit_price': float(row.get('UNIT_PRICE') or 0),
-            # total_price akan dihitung oleh model.save()
-            'work_weight': float(row.get('WORK_WEIGHT') or 0),
+        # Siapkan data baru
+        subitem = row.pop('_boq_subitem')
+        detail_data = {
+            'bill_of_quantity_subitem': subitem,
+            'item_number': int(float(row['NO'])),
+            'description': row['DESCRIPTION'],
+            'quantity': float(row['QUANTITY'] or 0),
+            'unit_price': float(row['UNIT_PRICE'] or 0),
+            'work_weight': float(row['WORK_WEIGHT'] or 0),
             'notes': '',
         }
-
-        # Jika ada instance lama (bergantung import_id_fields), ubah, jika tidak, buat baru
-        return super().import_row(row, instance_loader, **kwargs, **data_for_detail)
+        # Gunakan instance_loader untuk cek apakah instance sudah ada (berdasarkan import_id_fields)
+        # Kalau sudah ada → update, kalau tidak → create
+        return super().import_obj({**row, **detail_data}, instance_loader, **kwargs)
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         """
-        Setelah detail tersimpan, kita hitung ulang total di BOQ header.
+        Setelah setiap detail tersimpan, update total di BOQ header.
         """
         boq = instance.bill_of_quantity_subitem.bill_of_quantity_item.bill_of_quantity
         boq.recalc_total()

@@ -6,6 +6,7 @@ from project.models import Schedule
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .resources import *
+from import_export.admin import ImportExportMixin
 
 class ScheduleInline(nested_admin.NestedTabularInline):
     model   = Schedule
@@ -59,12 +60,16 @@ class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
     fields  = ('signature', 'photo_proof')
 
 @admin.register(BillOfQuantity)
-class BillOfQuantityAdmin(nested_admin.NestedModelAdmin):
+class BillOfQuantityAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
     list_display    = ('project', 'status', 'start_date', 'end_date', 'total')
     list_filter     = ('status', 'project', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter), ('total', NumericRangeFilter))
     search_fields   = ('project__project_name', 'notes')
     fields          = ('project', 'status', 'work_weight_total', 'total', 'start_date', 'end_date')
     inlines         = [BillOfQuantityItemInline, SignatureOnBillOfQuantityInline]
+
+    # Override `get_import_resource_class` untuk return resource detail
+    # def get_import_resource_class(self):
+    #     return BOQDetailImportResource
 
 #
 # Inlines for Expense → ExpenseDetail & ExpenseForMaterial

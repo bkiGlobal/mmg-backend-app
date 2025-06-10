@@ -168,7 +168,7 @@ class DocumentVersion(AuditModel):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='versions')
     title = models.CharField(max_length=255)
     document_file = models.FileField(upload_to=upload_document)
-    mime_type = models.CharField(max_length=50, blank=True)
+    mime_type = models.CharField(max_length=50, blank=True, null=True)
     document_number = models.CharField(max_length=255)
     notes = models.TextField()
 
@@ -177,9 +177,9 @@ class DocumentVersion(AuditModel):
 
     def save(self, *args, **kwargs):
         # Jika file baru diupload
-        self.mime_type = detect_mime(self.file) 
-        if isinstance(self.file, UploadedFile):
-            self.mime_type = self.file.content_type  # :contentReference[oaicite:3]{index=3}
+        # self.mime_type = detect_mime(self.file) 
+        # if isinstance(self.file, UploadedFile):
+        #     self.mime_type = self.file.content_type  # :contentReference[oaicite:3]{index=3}
         super().save(*args, **kwargs)
 
 class SignatureOnDocument(AuditModel):
