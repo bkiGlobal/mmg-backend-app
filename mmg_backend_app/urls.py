@@ -25,5 +25,5 @@ from django_encrypted_filefield.constants import FETCH_URL_NAME
 urlpatterns = [
     path('', RedirectView.as_view(url='/admin/', permanent=False), name='root-redirect'),
     path('admin/', admin.site.urls),
-    path('encrypted-media/<path:path>/', FetchView.as_view(), name=FETCH_URL_NAME),
+    path('encrypted-media<path:path>/', FetchView.as_view(), name=FETCH_URL_NAME),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
