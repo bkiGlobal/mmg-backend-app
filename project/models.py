@@ -191,7 +191,7 @@ class SignatureOnDocument(AuditModel):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='document_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.username} on {self.document.document_name}'
+        return f'Signature {self.signature.user.full_name} on {self.document.document_name}'
     
 class Defect(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

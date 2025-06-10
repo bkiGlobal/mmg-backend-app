@@ -152,7 +152,7 @@ class ProjectAdmin(nested_admin.NestedModelAdmin):
 # ──────────────── Schedule & WeeklyReport ────────────────
 
 @admin.register(Schedule)
-class ScheduleAdmin(nested_admin.NestedModelAdmin):
+class ScheduleAdmin(admin.ModelAdmin):
     list_display  = ('boq_item', 'display_photo', 'start_date', 'end_date', 'duration', 'duration_type', 'status')
     list_filter   = ('duration_type', 'status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
     search_fields = ('boq_item__description', 'notes')
