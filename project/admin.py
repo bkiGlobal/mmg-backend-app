@@ -50,7 +50,7 @@ class SignatureOnDeflectInline(nested_admin.NestedTabularInline):
     extra = 0
     fields = ('signature', 'photo_proof')
 
-@admin.register(Deflect)
+@admin.register(Defect)
 class DeflectAdmin(nested_admin.NestedModelAdmin):
     list_display  = ('project', 'work_title', 'location', 'is_approved', 'approved_at')
     list_filter   = ('is_approved', 'project', ('approved_at', DateRangeFilter))
@@ -118,7 +118,7 @@ class DocumentInline(nested_admin.NestedTabularInline):
     inlines         = [DocumentVersionInline, SignatureOnDocumentInline]
 
 class DeflectInline(nested_admin.NestedTabularInline):
-    model   = Deflect
+    model   = Defect
     extra   = 0
     fields  = ('work_title', 'location', 'is_approved', 'approved_at')
     inlines = [DeflectDetailInline, SignatureOnDeflectInline]
@@ -152,7 +152,7 @@ class ProjectAdmin(nested_admin.NestedModelAdmin):
 # ──────────────── Schedule & WeeklyReport ────────────────
 
 @admin.register(Schedule)
-class ScheduleAdmin(admin.ModelAdmin):
+class ScheduleAdmin(nested_admin.NestedModelAdmin):
     list_display  = ('boq_item', 'display_photo', 'start_date', 'end_date', 'duration', 'duration_type', 'status')
     list_filter   = ('duration_type', 'status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
     search_fields = ('boq_item__description', 'notes')

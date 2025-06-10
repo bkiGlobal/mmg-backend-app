@@ -1,3 +1,5 @@
+from datetime import timezone
+import os
 import uuid
 from django.conf import settings
 from django.db import models
@@ -65,6 +67,15 @@ class ToolCategory(models.TextChoices):
     DEMOLITION = "demolition", "Demolition"
     OTHER = "other", "Other"
 
+def upload_tools(instance, filename):
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    filename = f'TLS_{timestamp_now}.jpeg'
+    return os.path.join('tool', filename)
+
+def upload_materials(instance, filename):
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    filename = f'MTR_{timestamp_now}.jpeg'
+    return os.path.join('material', filename)
 
 class Material(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -82,6 +93,7 @@ class MaterialOnProject(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_material')
     material = models.ForeignKey(Material, on_delete=models.SET_NULL, related_name='material_project', null=True, blank=True)
+    photo = models.ImageField(upload_to=upload_materials, null=True, blank=True)
     stock = models.FloatField()
     quantity_used = models.FloatField()
     notes = models.TextField()
@@ -94,6 +106,7 @@ class MaterialOnProject(AuditModel):
 class Tool(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
+    photo = models.ImageField(upload_to=upload_tools, null=True, blank=True)
     category = models.CharField(max_length=20, choices=ToolCategory.choices)
     serial_number = models.CharField(max_length=255)
     conditions = models.TextField()

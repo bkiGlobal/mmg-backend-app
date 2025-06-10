@@ -109,8 +109,9 @@ def upload_error_proof(instance, filename):
     return os.path.join('error_proof_photo', filename)
 
 def upload_schedule_attachment(instance, filename):
+    base, ext = os.path.splitext(filename)
     timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
-    filename = f'SCA_{timestamp_now}.jpeg'
+    filename = f'SCA_{timestamp_now}{ext}'
     return os.path.join('schedule_attachment_photo', filename)
 
 def upload_weekly_report_attachment(instance, filename):
@@ -119,8 +120,9 @@ def upload_weekly_report_attachment(instance, filename):
     return os.path.join('weekly_report_attachment_photo', filename)
 
 def upload_work_method_photo(instance, filename):
+    base, ext = os.path.splitext(filename)
     timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
-    filename = f'WMT_{timestamp_now}.jpeg'
+    filename = f'WMT_{timestamp_now}{ext}'
     return os.path.join('work_method_photo', filename)
 
 class Project(AuditModel):
@@ -191,7 +193,7 @@ class SignatureOnDocument(AuditModel):
     def __str__(self) -> str:
         return f'Signature {self.signature.user.username} on {self.document.document_name}'
     
-class Deflect(AuditModel):
+class Defect(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_deflect')
     work_title = models.CharField(max_length=255)
@@ -204,7 +206,7 @@ class Deflect(AuditModel):
 
 class DeflectDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    deflect = models.ForeignKey(Deflect, on_delete=models.CASCADE, related_name='deflect_detail')
+    deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='deflect_detail')
     location_detail = models.CharField(max_length=255)
     deviation = models.FloatField()
     initial_checklist_date = models.DateTimeField()
@@ -218,7 +220,7 @@ class DeflectDetail(AuditModel):
 
 class SignatureOnDeflect(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    deflect = models.ForeignKey(Deflect, on_delete=models.CASCADE, related_name='deflect_signature')
+    deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='deflect_signature')
     signature = models.ForeignKey(Signature, on_delete=models.SET_NULL, null=True, blank=True)
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
@@ -272,7 +274,7 @@ class Schedule(AuditModel):
     end_date = models.DateField()
     status = models.CharField(max_length=20, choices=ScheduleStatusType.choices, default=ScheduleStatusType.APPROVED)
     notes = models.TextField()
-    attachment = models.ImageField(upload_to=upload_schedule_attachment)
+    attachment = models.FileField(upload_to=upload_schedule_attachment)
 
     def __str__(self) -> str:
         return f'Schedule {self.boq_item.bill_of_quantity_subitem.bill_of_quantity_item.title}'
@@ -294,7 +296,7 @@ class WorkMethod(AuditModel):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     work_title = models.CharField(max_length=255)
     document_number = models.CharField(max_length=255)
-    photo = models.ImageField(upload_to=upload_work_method_photo)
+    photo = models.FileField(upload_to=upload_work_method_photo)
     notes = models.TextField()
 
     def __str__(self) -> str:

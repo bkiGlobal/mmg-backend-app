@@ -2,6 +2,8 @@ from django.contrib import admin
 from .models import *
 from rangefilter.filters import DateRangeFilter, NumericRangeFilter
 import nested_admin
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 # ──────────────── Material ────────────────
 
@@ -9,11 +11,11 @@ class MaterialOnProjectInline(nested_admin.NestedTabularInline):
     model         = MaterialOnProject
     extra         = 0
     fields        = (
-        'project', 'stock', 'quantity_used',
+        'project', 'photo', 'stock', 'quantity_used',
         'notes', 'approved_by', 'approved_date'
     )
-    list_filter   = ('project', ('stock', NumericRangeFilter), ('quantity_used', NumericRangeFilter), ('approved_date', DateRangeFilter), 'approved_by')
-    search_fields = ('project__project_name', 'notes')
+    # list_filter   = ('project', ('stock', NumericRangeFilter), ('quantity_used', NumericRangeFilter), ('approved_date', DateRangeFilter), 'approved_by')
+    # search_fields = ('project__project_name', 'notes')
 
 @admin.register(Material)
 class MaterialAdmin(nested_admin.NestedModelAdmin):
@@ -67,12 +69,18 @@ class ToolOnProjectInline(nested_admin.NestedTabularInline):
 
 @admin.register(Tool)
 class ToolAdmin(nested_admin.NestedModelAdmin):
-    list_display  = ('name', 'category', 'serial_number', 'amount', 'available')
+    list_display  = ('name', 'display_photo', 'category', 'serial_number', 'amount', 'available')
     inlines       = [ToolOnProjectInline]
-    fields        = ('name', 'category', 'serial_number', 'conditions', 'amount', 'available')
+    fields        = ('name', 'photo', 'category', 'serial_number', 'conditions', 'amount', 'available')
     list_filter   = ('category', ('amount', NumericRangeFilter), ('available', NumericRangeFilter))
     search_fields = ('name', 'serial_number', 'conditions')
 
+    def display_photo(self, obj):
+        if obj.attachment:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'
 
 # ──────────────── ToolOnProject ────────────────
 
