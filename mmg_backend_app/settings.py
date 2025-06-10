@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'django_encrypted_filefield',
     'import_export',
     'mapwidgets',
     'mmg_backend_app',
@@ -100,7 +101,7 @@ MAP_WIDGETS = {
 
 DEFF_SALT=config('ENCRYPTED_FILEFIELD_SALT') 
 DEFF_PASSWORD=config('ENCRYPTED_FILEFIELD_KEY')
-# DEFF_FETCH_URL_NAME="fetch"
+DEFF_FETCH_URL_NAME="fetch"
 
 TEMPLATES = [
     {
