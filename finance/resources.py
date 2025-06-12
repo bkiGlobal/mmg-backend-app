@@ -122,3 +122,20 @@ class BillOfQuantityItemDetailResource(resources.ModelResource):
         """
         boq = instance.bill_of_quantity_subitem.bill_of_quantity_item.bill_of_quantity
         boq.recalc_total()
+
+class IncomeResource(resources.ModelResource):
+    class Meta:
+        model = Income
+        skip_unchanged = True
+        report_skipped = True
+        # exclude = ('id',)
+        # import_id_fields = ('branch', 'customer', 'voucher', 'delivery_address', 'payment_method', 'description', 'booking_date')
+        fields = ('id', 'project', 'project__project_name', 'received_from', 'total', 'category', 'payment_date', 'notes', 'payment_proof')
+
+class ExpenseResource(resources.ModelResource):
+    class Meta:
+        model = ExpenseOnProject
+        skip_unchanged = True
+        report_skipped = True
+        # import_id_fields   = ('branch', 'date', 'due_date', 'description', 'total_amount', 'timestamp')
+        fields = ('id', 'project', 'project__project_name', 'date', 'total', 'notes', 'payment_proof')

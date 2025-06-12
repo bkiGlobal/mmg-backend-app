@@ -133,7 +133,7 @@ class Signature(AuditModel):
 class Initial(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_initial')
-    initial = EncryptedImageField()
+    initial = EncryptedImageField(upload_to=upload_initial)
     expire_at = models.DateTimeField(auto_now_add=timezone.now() + timezone.timedelta(days=30))
 
     def __str__(self) -> str:
