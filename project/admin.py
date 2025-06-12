@@ -151,7 +151,7 @@ class ProjectAdmin(nested_admin.NestedModelAdmin):
 
 # ──────────────── Schedule & WeeklyReport ────────────────
 
-# @admin.register(Schedule)
+@admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
     list_display  = ('boq_item', 'display_photo', 'start_date', 'end_date', 'duration', 'duration_type', 'status')
     list_filter   = ('duration_type', 'status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
@@ -165,9 +165,7 @@ class ScheduleAdmin(admin.ModelAdmin):
             return mark_safe('<span>No Image</span>')
     display_photo.short_description = 'Photo'
 
-admin.site.register(Schedule, ScheduleAdmin)
-
-# @admin.register(WeeklyReport)
+@admin.register(WeeklyReport)
 class WeeklyReportAdmin(admin.ModelAdmin):
     list_display  = ('boq_item', 'display_photo', 'week_number', 'report_date', 'progress_percentage')
     list_filter   = ('week_number', ('report_date', DateRangeFilter), ('progress_percentage', NumericRangeFilter))
@@ -180,5 +178,3 @@ class WeeklyReportAdmin(admin.ModelAdmin):
         else:
             return mark_safe('<span>No Image</span>')
     display_photo.short_description = 'Photo'
-
-admin.site.register(WeeklyReport, WeeklyReportAdmin)
