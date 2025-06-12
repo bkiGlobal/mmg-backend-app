@@ -276,7 +276,7 @@ class Schedule(AuditModel):
     attachment = models.FileField(upload_to=upload_schedule_attachment)
 
     def __str__(self) -> str:
-        return f'Schedule A'
+        return f'Schedule for {self.boq_item.bill_of_quantity_subitem.bill_of_quantity_item.title}'
     
 class WeeklyReport(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -288,7 +288,7 @@ class WeeklyReport(AuditModel):
     attachment = models.ImageField(upload_to=upload_weekly_report_attachment)
 
     def __str__(self) -> str:
-        return f'Report for in week {self.week_number}'
+        return f'Report for {self.boq_item.bill_of_quantity_subitem.bill_of_quantity_item.title} in week {self.week_number}'
 
 class WorkMethod(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
