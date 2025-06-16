@@ -187,3 +187,11 @@ class WeeklyReportAdmin(admin.ModelAdmin):
         else:
             return mark_safe('<span>No Image</span>')
     display_photo.short_description = 'Photo'
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'boq_item':
+            kwargs["queryset"] = BillOfQuantityItemDetail.objects.select_related(
+                'bill_of_quantity_subitem',
+                'bill_of_quantity_subitem__bill_of_quantity_item',
+            ).all()[:100]  # Limit jumlah data jika perlu
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
