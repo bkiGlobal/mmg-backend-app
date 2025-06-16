@@ -1,12 +1,16 @@
 from django import forms
-from django.apps import apps
+from .models import Schedule, BillOfQuantityItemDetail
 
-class ScheduleForm(forms.ModelForm):
+class ScheduleAdminForm(forms.ModelForm):
     class Meta:
-        model = apps.get_model('project', 'Schedule')
+        model = Schedule
         fields = '__all__'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        BoqModel = apps.get_model('finance', 'BillOfQuantityItemDetail')
-        self.fields['boq_item'] = forms.ModelChoiceField(queryset=BoqModel.objects.all())
+        try:
+            self.fields['boq_item'].queryset = BillOfQuantityItemDetail.objects.all()
+        except Exception as e:
+            import logging
+            logging.error(f"Error loading boq_item queryset: {e}")
+            self.fields['boq_item'].queryset = BillOfQuantityItemDetail.objects.none()
