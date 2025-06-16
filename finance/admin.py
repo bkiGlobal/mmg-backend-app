@@ -64,6 +64,20 @@ class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
     extra   = 0
     fields  = ('signature', 'photo_proof')
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Signature.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(BillOfQuantity)
 class BillOfQuantityAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
     list_display    = ('project', 'status', 'start_date', 'end_date', 'total')
@@ -124,7 +138,134 @@ class ExpenseOnProjectAdmin(nested_admin.NestedModelAdmin):
     readonly_fields = ('total',)
     resource_class = ExpenseResource
     inlines         = [ExpenseDetailInline, ExpenseForMaterialInline]
+    change_list_template = "admin/expense_change_list.html"
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path('export-all/', self.admin_site.admin_view(self.export_all), name='expense-export-all'),
+            path('import-all/', self.admin_site.admin_view(self.import_all_view), name='finance_expense_import_all',),
+        ]
+        return custom + urls
     
+    def export_all(self, request):
+        # 1) export kedua dataset
+        expense_ds = ExpenseResource().export()
+        detail_ds = ExpenseDetailResource().export()
+        material_ds = ExpenseForMaterialResource().export()
+
+        # 2) ubah ke DataFrame pandas
+        df_exp = pd.DataFrame(expense_ds.dict)
+        df_det = pd.DataFrame(detail_ds.dict)
+        df_mat = pd.DataFrame(material_ds.dict)
+
+        # 3) tulis ke Excel multi-sheet
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            df_exp.to_excel(writer, sheet_name='Expense', index=False)
+            df_det.to_excel(writer, sheet_name='ExpenseDetail', index=False)
+            df_mat.to_excel(writer, sheet_name='ExpenseForMaterial', index=False)
+        buffer.seek(0)
+
+        # 4) kembalikan HttpResponse sebagai file download
+        response = HttpResponse(
+            buffer,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="expepense_full_export.xlsx"'
+        return response
+    
+    def import_all_view(self, request):
+        """
+        Custom admin view untuk upload dan import file multi‐sheet Excel.
+        """
+        if request.method == 'POST':
+            form = MultiSheetImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                excel_file = form.cleaned_data['file']
+                try:
+                    # Baca ketiga sheet
+                    xls = pd.ExcelFile(excel_file)
+                    df_exp = xls.parse('Expense')
+                    df_det = xls.parse('ExpenseDetail')
+                    df_mat = xls.parse('ExpenseForMaterial')
+                except Exception as e:
+                    self.message_user(request, f"Gagal membaca Excel: {e}", level=messages.ERROR)
+                    return redirect('..')
+
+                # Import Expense
+                created_inc = 0
+                for _, row in df_exp.iterrows():
+                    obj, created = ExpenseOnProject.objects.update_or_create(
+                        id=row['id'],
+                        defaults={
+                            'project_id': row['project'], 
+                            'date': row['date'],
+                            'total': row.get('total') or 0,
+                            'notes': row.get('notes') or '',
+                            'photo_proof': row.get('photo_proof') or None,
+                        }
+                    )
+                    if created: created_inc += 1
+
+                # Import ExpenseDetail
+                created_det = 0
+                for _, row in df_det.iterrows():
+                    obj, created = ExpenseDetail.objects.update_or_create(
+                        id=row['id'],
+                        defaults={
+                            'expense_on_project_id': row['expense_on_project'],
+                            'category': row['category'],
+                            'name': row['name'],
+                            'quantity': row.get('quantity') or 0,
+                            'unit_price': row.get('unit_price') or 0,
+                            'unit': row['unit'],
+                            'subtotal': row.get('subtotal') or 0,
+                            'discount': row.get('discount') or 0,
+                            'discount_type': row['discount_type'],
+                            'discount_amount': row.get('discount_amount') or 0,
+                            'total': row.get('total') or 0,
+                            'notes': row.get('notes') or '',
+                        }
+                    )
+
+                    # Import ExpenseDetail
+                created_mat = 0
+                for _, row in df_det.iterrows():
+                    obj, created = Material.objects.update_or_create(
+                        id=row['id'],
+                        defaults={
+                            'expense_on_project_id': row['expense_on_project'],
+                            'material': row['material'],
+                            'category': row['category'],
+                            'quantity': row.get('quantity') or 0,
+                            'unit': row['unit'],
+                            'unit_price': row.get('unit_price') or 0,
+                            'subtotal': row.get('subtotal') or 0,
+                            'discount': row.get('discount') or 0,
+                            'discount_type': row['discount_type'],
+                            'discount_amount': row.get('discount_amount') or 0,
+                            'total': row.get('total') or 0,
+                        }
+                    )
+
+                self.message_user(
+                    request,
+                    f"Sukses import: {created_inc} Expense baru, {created_det} ExpenseDetail baru, dan ExpenseMaterial {created_mat}.",
+                    level=messages.SUCCESS
+                )
+                return redirect('..')
+        else:
+            form = MultiSheetImportForm()
+
+        context = dict(
+            self.admin_site.each_context(request),
+            form=form,
+            title="Import Expense, Details, & Material dari Excel"
+        )
+        return render(request, "admin/import_all_expense.html", context)
+
     def display_photo(self, obj):
         if obj.photo_proof:
             return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo_proof.url))
@@ -194,8 +335,6 @@ class IncomeAdmin(nested_admin.NestedModelAdmin):
         )
         response['Content-Disposition'] = 'attachment; filename="income_full_export.xlsx"'
         return response
-    
-
 
     def import_all_view(self, request):
         """
@@ -265,7 +404,7 @@ class IncomeAdmin(nested_admin.NestedModelAdmin):
             form=form,
             title="Import Income & Details dari Excel"
         )
-        return render(request, "admin/import_all.html", context)
+        return render(request, "admin/import_all_income.html", context)
     
     def display_photo(self, obj):
         if obj.payment_proof:

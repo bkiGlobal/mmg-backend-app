@@ -137,11 +137,15 @@ class IncomeDetailInlineResource(resources.ModelResource):
 class IncomeResource(resources.ModelResource):
     class Meta:
         model = Income
+        skip_unchanged = True
+        report_skipped = True
         fields = ('id','project','received_from','total','category','payment_date','notes')
 
 class IncomeDetailResource(resources.ModelResource):
     class Meta:
         model = IncomeDetail
+        skip_unchanged = True
+        report_skipped = True
         fields = ('id','income','name','quantity','unit_price','unit','subtotal','discount','discount_type','discount_amount','total','notes')
 
 class ExpenseResource(resources.ModelResource):
@@ -150,4 +154,28 @@ class ExpenseResource(resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
         # import_id_fields   = ('branch', 'date', 'due_date', 'description', 'total_amount', 'timestamp')
-        fields = ('id', 'project', 'project__project_name', 'date', 'total', 'notes', 'payment_proof')
+        fields = ('id', 'project', 'date', 'total', 'notes', 'payment_proof')
+
+
+class ExpenseDetailResource(resources.ModelResource):
+    class Meta:
+        model = ExpenseDetail
+        skip_unchanged = True
+        report_skipped = True
+        fields = (
+            'id', 'expense', 'category', 'name', 'quantity', 
+            'unit_price', 'unit', 'subtotal', 'discount', 
+            'discount_type', 'discount_amount', 'total', 'notes'
+        )
+
+class ExpenseForMaterialResource(resources.ModelResource):
+    class Meta:
+        model = ExpenseForMaterial
+        skip_unchanged = True
+        report_skipped = True
+        fields = (
+            'id', 'expense', 'material', 'category', 
+            'quantity', 'unit_price', 'unit', 
+            'subtotal', 'discount', 'discount_type', 
+            'discount_amount', 'total'
+        )

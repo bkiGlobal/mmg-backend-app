@@ -1,0 +1,11 @@
+{% extends "admin/base_site.html" %} {% load i18n static %} {% block content %}
+<h1>{{ title }}</h1>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <table>
+    {{ form.as_table }}
+  </table>
+  <input type="submit" value="Upload dan Import" class="default" />
+  <a href="..">Batal</a>
+</form>
+{% endblock %}

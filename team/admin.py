@@ -48,6 +48,20 @@ class InitialInline(admin.TabularInline):
     fields          = ('initial', 'expire_at')
     readonly_fields = ('expire_at',)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'initial'
+        if db_field.name == 'initial':
+            # filter queryset agar hanya initial milik user yang login
+            # asumsinya: Initial.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Initial.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Initial.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 # ──────────────── Attendance ────────────────
 class AttendanceInline(admin.TabularInline):
     model           = Attendance

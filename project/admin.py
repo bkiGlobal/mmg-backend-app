@@ -23,6 +23,20 @@ class SignatureOnDocumentInline(nested_admin.NestedTabularInline):
     extra   = 0
     fields  = ('signature', 'photo_proof')
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Signature.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(Document)
 class DocumentAdmin(nested_admin.NestedModelAdmin):
     list_display  = ('project', 'document_name', 'document_type', 'status', 'issue_date', 'due_date')
@@ -50,6 +64,20 @@ class SignatureOnDeflectInline(nested_admin.NestedTabularInline):
     model = SignatureOnDeflect
     extra = 0
     fields = ('signature', 'photo_proof')
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Signature.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Defect)
 class DeflectAdmin(nested_admin.NestedModelAdmin):
@@ -80,6 +108,20 @@ class SignatureOnErrorLogInline(nested_admin.NestedTabularInline):
     extra   = 0
     fields  = ('signature', 'photo_proof')
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Signature.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(ErrorLog)
 class ErrorLogAdmin(nested_admin.NestedModelAdmin):
     list_display  = ('project', 'work_type', 'periode_start', 'periode_end')
@@ -94,6 +136,20 @@ class SignatureOnWorkMethodInline(nested_admin.NestedTabularInline):
     model = SignatureOnWorkMethod
     extra = 0
     fields = ('signature', 'photo_proof')
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Signature.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(WorkMethod)
 class WorkMethodAdmin(nested_admin.NestedModelAdmin):
