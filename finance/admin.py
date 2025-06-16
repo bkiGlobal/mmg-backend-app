@@ -50,7 +50,7 @@ class BillOfQuantitySubItemInline(nested_admin.NestedTabularInline):
     inlines = [BillOfQuantityItemDetailInline]
     extra   = 0
     fields  = ('item_order', 'title', 'notes',)
-    # readonly_fields = ('total_price',)
+    readonly_fields = ('total_price',)
 
 class BillOfQuantityItemInline(nested_admin.NestedTabularInline):
     model   = BillOfQuantityItem
@@ -79,35 +79,6 @@ class BillOfQuantityAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
 #
 # Inlines for Expense → ExpenseDetail & ExpenseForMaterial
 #
-
-@admin.register(BillOfQuantityItemDetail)
-class BillOfQuantityItemDetailModel(nested_admin.NestedModelAdmin):
-    list_display = ('bill_of_quantity_subitem', 'item_number', 'description', 'quantity', 'unit_type', 'unit_price', 'total_price', 'work_weight')
-    inlines = [ScheduleInline]
-    fields  = (
-        'bill_of_quantity_subitem',
-        'item_number',
-        'description',
-        'quantity',
-        'unit_type',
-        'unit_price',
-        'total_price',
-        'work_weight',
-        'notes',
-    )
-    readonly_fields = ('total_price',)
-
-@admin.register(BillOfQuantitySubItem)
-class BillOfQuantitySubItemModel(nested_admin.NestedModelAdmin):
-    list_display  = ('bill_of_quantity_item', 'item_order', 'title', 'notes',)
-    inlines = [BillOfQuantityItemDetailInline]
-    fields  = ('bill_of_quantity_item', 'item_order', 'title', 'notes',)
-
-@admin.register(BillOfQuantityItem)
-class BillOfQuantityItemModel(nested_admin.NestedModelAdmin):
-    list_display = ('bill_of_quantity', 'item_number', 'title', 'notes')
-    inlines = [BillOfQuantitySubItemInline]
-    fields  = ('bill_of_quantity', 'item_number', 'title', 'notes')
 
 class ExpenseDetailInline(nested_admin.NestedTabularInline):
     model   = ExpenseDetail
