@@ -1,5 +1,6 @@
 from django import forms
-from .models import Schedule, BillOfQuantityItemDetail
+from .models import Schedule
+from finance.models import BillOfQuantityItemDetail
 
 class ScheduleAdminForm(forms.ModelForm):
     class Meta:
