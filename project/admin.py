@@ -157,7 +157,7 @@ class ScheduleAdmin(admin.ModelAdmin):
     list_display  = ('boq_item', 'display_photo', 'start_date', 'end_date', 'duration', 'duration_type', 'status')
     list_filter   = ('duration_type', 'status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
     search_fields = ('boq_item__description', 'notes')
-    # fields        = ('boq_item', 'start_date', 'end_date', 'duration', 'duration_in_field', 'duration_for_client', 'duration_type', 'status', 'attachment', 'notes')
+    fields        = ('boq_item', 'start_date', 'end_date', 'duration', 'duration_in_field', 'duration_for_client', 'duration_type', 'status', 'attachment', 'notes')
 
     def display_photo(self, obj):
         if obj.attachment:
