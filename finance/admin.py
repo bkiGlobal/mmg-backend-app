@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 import nested_admin
 from rangefilter.filters import DateRangeFilter, NumericRangeFilter
 from .models import *
@@ -6,7 +6,12 @@ from project.models import Schedule
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .resources import *
-from import_export.admin import ImportExportMixin
+from import_export.admin import ImportExportMixin, ImportExportModelAdmin
+import io
+import pandas as pd
+from django.http import HttpResponse
+from django.shortcuts import render, redirect
+from .forms import MultiSheetImportForm
 
 class ScheduleInline(nested_admin.NestedTabularInline):
     model   = Schedule
@@ -116,6 +121,7 @@ class ExpenseOnProjectAdmin(nested_admin.NestedModelAdmin):
     search_fields   = ('project__project_name', 'notes')
     fields          = ('project', 'photo_proof', 'date', 'total', 'notes')
     readonly_fields = ('total',)
+    resource_class = ExpenseResource
     inlines         = [ExpenseDetailInline, ExpenseForMaterialInline]
     
     def display_photo(self, obj):
@@ -153,6 +159,112 @@ class IncomeAdmin(nested_admin.NestedModelAdmin):
     fields          = ('project', 'payment_proof', 'received_from', 'category', 'payment_date', 'total', 'notes')
     readonly_fields = ('total',)
     inlines         = [IncomeDetailInline]
+    change_list_template = "admin/income_change_list.html"
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path('export-all/', self.admin_site.admin_view(self.export_all), name='income-export-all'),
+            path('import-all/', self.admin_site.admin_view(self.import_all_view), name='finance_income_import_all',),
+        ]
+        return custom + urls
+
+    def export_all(self, request):
+        # 1) export kedua dataset
+        income_ds = IncomeResource().export()
+        detail_ds = IncomeDetailResource().export()
+
+        # 2) ubah ke DataFrame pandas
+        df_inc = pd.DataFrame(income_ds.dict)
+        df_det = pd.DataFrame(detail_ds.dict)
+
+        # 3) tulis ke Excel multi-sheet
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            df_inc.to_excel(writer, sheet_name='Income', index=False)
+            df_det.to_excel(writer, sheet_name='IncomeDetail', index=False)
+        buffer.seek(0)
+
+        # 4) kembalikan HttpResponse sebagai file download
+        response = HttpResponse(
+            buffer,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="income_full_export.xlsx"'
+        return response
+    
+
+
+    def import_all_view(self, request):
+        """
+        Custom admin view untuk upload dan import file multi‐sheet Excel.
+        """
+        if request.method == 'POST':
+            form = MultiSheetImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                excel_file = form.cleaned_data['file']
+                try:
+                    # Baca kedua sheet
+                    xls = pd.ExcelFile(excel_file)
+                    df_inc = xls.parse('Income')
+                    df_det = xls.parse('IncomeDetail')
+                except Exception as e:
+                    self.message_user(request, f"Gagal membaca Excel: {e}", level=messages.ERROR)
+                    return redirect('..')
+
+                # Import Income
+                created_inc = 0
+                for _, row in df_inc.iterrows():
+                    obj, created = Income.objects.update_or_create(
+                        id=row['id'],
+                        defaults={
+                            'project_id': row['project'],
+                            'received_from': row['received_from'],
+                            'total': row.get('total') or 0,
+                            'category': row['category'],
+                            'payment_date': row['payment_date'],
+                            'notes': row.get('notes') or '',
+                        }
+                    )
+                    if created: created_inc += 1
+
+                # Import IncomeDetail
+                created_det = 0
+                for _, row in df_det.iterrows():
+                    obj, created = IncomeDetail.objects.update_or_create(
+                        id=row['id'],
+                        defaults={
+                            'income_id': row['income'],
+                            'name': row['name'],
+                            'quantity': row.get('quantity') or 0,
+                            'unit_price': row.get('unit_price') or 0,
+                            'unit': row['unit'],
+                            'subtotal': row.get('subtotal') or 0,
+                            'discount': row.get('discount') or 0,
+                            'discount_type': row.get('discount_type'),
+                            'discount_amount': row.get('discount_amount') or 0,
+                            'total': row.get('total') or 0,
+                            'notes': row.get('notes') or '',
+                        }
+                    )
+                    if created: created_det += 1
+
+                self.message_user(
+                    request,
+                    f"Sukses import: {created_inc} Income baru, {created_det} IncomeDetail baru.",
+                    level=messages.SUCCESS
+                )
+                return redirect('..')
+        else:
+            form = MultiSheetImportForm()
+
+        context = dict(
+            self.admin_site.each_context(request),
+            form=form,
+            title="Import Income & Details dari Excel"
+        )
+        return render(request, "admin/import_all.html", context)
     
     def display_photo(self, obj):
         if obj.payment_proof:

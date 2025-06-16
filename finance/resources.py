@@ -1,5 +1,5 @@
 from import_export import resources, fields, widgets
-from import_export.widgets import FloatWidget
+from import_export.widgets import FloatWidget, ForeignKeyWidget
 from finance.models import *
 
 class BillOfQuantityItemDetailResource(resources.ModelResource):
@@ -123,14 +123,26 @@ class BillOfQuantityItemDetailResource(resources.ModelResource):
         boq = instance.bill_of_quantity_subitem.bill_of_quantity_item.bill_of_quantity
         boq.recalc_total()
 
+class IncomeDetailInlineResource(resources.ModelResource):
+    class Meta:
+        model = IncomeDetail
+        fields = (
+            'income',
+            'name', 'quantity', 'unit_price', 'unit', 
+            'subtotal', 'discount', 'discount_type', 
+            'discount_amount', 'total', 'notes'
+        )
+        import_id_fields = ('id',)
+
 class IncomeResource(resources.ModelResource):
     class Meta:
         model = Income
-        skip_unchanged = True
-        report_skipped = True
-        # exclude = ('id',)
-        # import_id_fields = ('branch', 'customer', 'voucher', 'delivery_address', 'payment_method', 'description', 'booking_date')
-        fields = ('id', 'project', 'project__project_name', 'received_from', 'total', 'category', 'payment_date', 'notes', 'payment_proof')
+        fields = ('id','project','received_from','total','category','payment_date','notes')
+
+class IncomeDetailResource(resources.ModelResource):
+    class Meta:
+        model = IncomeDetail
+        fields = ('id','income','name','quantity','unit_price','unit','subtotal','discount','discount_type','discount_amount','total','notes')
 
 class ExpenseResource(resources.ModelResource):
     class Meta:

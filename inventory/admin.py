@@ -76,7 +76,7 @@ class ToolAdmin(nested_admin.NestedModelAdmin):
     search_fields = ('name', 'serial_number', 'conditions')
 
     def display_photo(self, obj):
-        if obj.attachment:
+        if obj.photo:
             return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo.url))
         else:
             return mark_safe('<span>No Image</span>')

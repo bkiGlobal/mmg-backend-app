@@ -1,0 +1,20 @@
+{% extends "admin/change_list.html" %} {% load i18n %} {% block object-tools %}
+{{ block.super }}
+<li>
+  <a
+    href="{% url 'admin:income-export-all' %}"
+    class="button"
+    style="margin-right: 0.5em"
+  >
+    {% translate 'Export All to Excel' %}
+  </a>
+</li>
+<li>
+  <a
+    href="{% url 'admin:finance_income_import_all' %}"
+    class="button button-import"
+  >
+    {% translate 'Import Income & Details' %}
+  </a>
+</li>
+{% endblock %}

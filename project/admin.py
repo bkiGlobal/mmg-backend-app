@@ -4,6 +4,7 @@ import nested_admin
 from django.contrib import admin
 from team.models import SubContractorOnProject
 from .models import *
+from .forms import *
 from rangefilter.filters import DateRangeFilter, NumericRangeFilter
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -153,6 +154,7 @@ class ProjectAdmin(nested_admin.NestedModelAdmin):
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
+    form = ScheduleForm
     list_display  = ('boq_item', 'display_photo', 'start_date', 'end_date', 'duration', 'duration_type', 'status')
     list_filter   = ('duration_type', 'status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
     search_fields = ('boq_item__description', 'notes')
