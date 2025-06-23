@@ -1,6 +1,6 @@
-from django.contrib.gis.db import models
+from django.contrib.gis.db import models as gis_models
 from django.contrib import admin
-from .models import Location
+from .models import *
 import mapwidgets
 
 admin.site.site_url = 'https://mmg-construction.com/'  
@@ -12,7 +12,7 @@ class LocationsModelAdmin(admin.ModelAdmin):
     readonly_fields = ('latitude', 'longitude')
     
     formfield_overrides = {
-        models.PointField: {
+        gis_models.PointField: {
             'widget': mapwidgets.GoogleMapPointFieldWidget,
         },
     }
@@ -23,3 +23,43 @@ class LocationsModelAdmin(admin.ModelAdmin):
     #         'default_zoom': 12,         # ganti dengan level zoom yang diinginkan
     #     }
     # }
+
+@admin.register(ExpenseCategory)
+class ExpenseCategoryModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(IncomeCategory)
+class IncomeCategoryModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(DocumentType)
+class DocumentTypeModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(WorkType)
+class WorkTypeModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(MaterialCategory)
+class MaterialCategoryModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(ToolCategory)
+class ToolCategoryModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(UnitType)
+class UnitTypeModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(Brand)
+class BrandModelAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)

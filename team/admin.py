@@ -82,7 +82,7 @@ class ProfileAdmin(admin.ModelAdmin):
         'location', 'user', 'full_name', 'role',
         'gender', 'status', 'birthday',
         'join_date', 'phone_number', 'profile_picture',
-        'is_active'
+        'is_active', 'update_at'
     )
     list_filter     = ('role', 'gender', 'status', 'is_active', ('birthday', DateRangeFilter), ('join_date', DateRangeFilter))
     search_fields   = ('full_name', 'phone_number')
@@ -111,23 +111,68 @@ class ProfileAdmin(admin.ModelAdmin):
 #     search_fields  = ('user__full_name',)
 #     readonly_fields = ('id', 'created_at', 'updated_at', 'deleted_at', 'deleted_by')
 
+# ──────────────── LeaveRequests ────────────────
+
+class SignatureOnLeaveRequestInline(admin.TabularInline):
+    model   = SignatureOnLeaveRequest
+    extra   = 0
+    fields  = ('signature', 'photo_proof')
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Signature.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+@admin.register(LeaveRequest)
+class LeaveRequestInline(admin.ModelAdmin):
+    list_display    = ('status', 'start_date', 'end_date', 'reason', 'photo_proof', 'approved_by', 'approved_date')
+    list_filter     = ('status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter), ('approved_date', DateRangeFilter), 'approved_by')
+    search_fields   = ('reason', )
+    fields          = ('status', 'start_date', 'end_date', 'reason', 'photo_proof')
+    readonly_fields = ('approved_by', 'approved_date')
+
+    def save_model(self, request, obj, form, change):
+        # Jika status diubah dan baru saja menjadi Approved
+        if change:
+            previous = self.model.objects.get(pk=obj.pk)
+            if previous.status != obj.status and obj.status == LeaveStatus.APPROVED:
+                obj.approve_by = request.user
+                obj.approve_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
+    def get_inline_instances(self, request, obj=None):
+        inline_instances = super().get_inline_instances(request, obj)
+
+        # Hanya tambahkan SignatureOnBillOfQuantityInline jika status Approve
+        if obj and obj.status == LeaveStatus.APPROVED:  # Sesuaikan jika status choices punya nilai lain
+            inline_instances.append(SignatureOnLeaveRequestInline(self.model, self.admin_site))
+
+        return inline_instances
 
 # ──────────────── Notifications ────────────────
 
 @admin.register(Notifications)
 class NotificationsAdmin(admin.ModelAdmin):
     list_display    = ('title', 'user', 'is_read', 'sent_at')
-    list_filter     = ('is_read', 'sent_at', ('sent_at', DateRangeFilter))
+    list_filter     = ('is_read', ('sent_at', DateRangeFilter))
     search_fields   = ('title', 'user__full_name', 'message')
     readonly_fields = ('id', 'sent_at')
-
 
 # ──────────────── SubContractor & Workers ────────────────
 
 class SubContractorWorkerInline(admin.TabularInline):
     model = SubContractorWorker
     extra = 0
-    fields = ('worker_name', 'contact_number')
+    fields = ('worker_name', 'contact_number', 'id_photo')
 
 class SubContractorOnProjectInline(admin.TabularInline):
     model  = SubContractorOnProject

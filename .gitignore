@@ -10,4 +10,14 @@ leave_request
 tool
 material
 document_project
+defect_project
+drawing_project
+work_method_photo
+weekly_report_attachment_photo
+schedule_attachment_photo
+error_proof_photo
+payment_request_project
+boq_project
+material_project
 static
+id_worker

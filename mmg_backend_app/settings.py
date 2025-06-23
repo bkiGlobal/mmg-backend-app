@@ -30,6 +30,9 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
+USE_L10N = True
+USE_THOUSAND_SEPARATOR = True
+LANGUAGE_CODE = 'id'  # atau 'id-ID'
 
 # Application definition
 
@@ -46,6 +49,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.gis',
     'django_encrypted_filefield',
+    'djmoney',
+    'django_currentuser',
     'import_export',
     'mapwidgets',
     'mmg_backend_app',
@@ -66,6 +71,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'django_currentuser.middleware.ThreadLocalUserMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

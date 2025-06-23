@@ -31,6 +31,7 @@ class StatusType(models.TextChoices):
     RESIGN = "resign", "Resign"
     PERMANENT = "permanent", "Permanent"
     PROBATION = "probation", "Probation"
+    TERMINATED = "terminated", "Terminated"
     CLIENT = "client", "Client"
 
 class AttendanceStatus(models.TextChoices):
@@ -83,6 +84,11 @@ def upload_leave_request(instance, filename):
     timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
     filename = f'LVR_{timestamp_now}.jpeg'
     return os.path.join('leave_request', filename)
+
+def upload_id_worker(instance, filename):
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    filename = f'WKR_{timestamp_now}.jpeg'
+    return os.path.join('id_worker', filename)
 
 class Profile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -164,6 +170,7 @@ class SubContractorWorker(AuditModel):
     subcon = models.ForeignKey(SubContractor, on_delete=models.CASCADE, related_name='subcons_worker')
     worker_name = models.CharField(max_length=50)
     contact_number = models.CharField(max_length=20)
+    id_photo = models.ImageField(upload_to=upload_id_worker, null=True, blank=True)
 
     def __str__(self) -> str:
         return f'{self.worker_name} from {self.subcon.name}'
@@ -205,3 +212,12 @@ class LeaveRequest (AuditModel):
 
     def __str__(self) -> str:
         return f'Leave Request {self.user.full_name} from {self.start_date} to {self.end_date}'
+    
+class SignatureOnLeaveRequest(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    signature = models.ForeignKey(Signature, on_delete=models.CASCADE)
+    photo_proof = models.ImageField(upload_to=upload_signature_proof)
+    leave_request = models.ForeignKey(LeaveRequest, on_delete=models.CASCADE, related_name='leave_request_signatures')
+
+    def __str__(self) -> str:
+        return f'Signature {self.signature.user.username} on BOQ {self.leave_request.user.full_name}'

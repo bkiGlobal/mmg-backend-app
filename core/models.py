@@ -1,7 +1,8 @@
-from datetime import timezone
+from django.utils import timezone
 from django.db import models
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
+from django_currentuser.middleware import get_current_authenticated_user
 
 class AuditModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -24,11 +25,22 @@ class AuditModel(models.Model):
     class Meta:
         abstract = True
 
+    def save(self, *args, **kwargs):
+        user = get_current_authenticated_user()
+        if not self.pk:
+            self.created_by = user
+        self.updated_by = user
+        super().save(*args, **kwargs)
+        
     def delete(self, using=None, keep_parents=False):
-        """Soft delete: tandai tanpa hapus fisik."""
-        self.is_deleted = True
-        self.deleted_at = timezone.now()
-        # deleted_by di-set di view/servis sebelum memanggil delete()
+        """
+        Soft delete: tandai tanpa hapus fisik.
+        """
+        user = get_current_authenticated_user()
+        self.is_deleted  = True
+        self.deleted_at  = timezone.now()
+        if user:
+            self.deleted_by = user
         self.save()
 
 class Location(models.Model):
@@ -51,3 +63,51 @@ class Location(models.Model):
             self.longitude = self.address.x
             self.latitude  = self.address.y
         super().save(*args, **kwargs)
+
+class ExpenseCategory(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class IncomeCategory(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class DocumentType(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class WorkType(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class MaterialCategory(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class ToolCategory(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+    
+class UnitType(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class Brand(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name

@@ -3,7 +3,7 @@ import os
 import uuid
 from django.db import models
 import magic
-from core.models import AuditModel, Location
+from core.models import *
 from team.models import Team, Signature, Initial, upload_signature_proof, Profile
 
 class ProjectStatus(models.TextChoices):
@@ -12,30 +12,31 @@ class ProjectStatus(models.TextChoices):
     ON_HOLD = 'on_hold', 'On Hold'
     CANCELLED = 'cancelled', 'Cancelled'
     DELAYED = 'delayed', 'Delayed'
+    TENDER = 'tender', 'Tender'
 
-class DocumentType(models.TextChoices):
-    PROJECT_PROPOSAL = 'project_proposal', 'Project Proposal'
-    FEASIBILITY_STUDY = 'feasibility_study', 'Feasibility Study'
-    DESIGN_BLUEPRINT = 'design_blueprint', 'Design Blueprint'
-    CONTRACT_AGREEMENT = 'contract_agreement', 'Contract Agreement'
-    SUBCONTRACT_AGREEMENT = 'subcontract_agreement', 'Subcontract Agreement'
-    PURCHASE_ORDER = 'purchase_order', 'Purchase Order'
-    PERMIT_APPLICATION = 'permit_application', 'Permit Application'
-    INSURANCE_DOCUMENT = 'insurance_document', 'Insurance Document'
-    DAILY_PROGRESS_REPORT = 'daily_progress_report', 'Daily Progress Report'
-    WEEKLY_PROGRESS_REPORT = 'weekly_progress_report', 'Weekly Progress Report'
-    MONTHLY_PROGRESS_REPORT = 'monthly_progress_report', 'Monthly Progress Report'
-    INSPECTION_REPORT = 'inspection_report', 'Inspection Report'
-    MEETING_MINUTES = 'meeting_minutes', 'Meeting Minutes'
-    PAYMENT_REQUEST = 'payment_request', 'Payment Request'
-    INVOICE = 'invoice', 'Invoice'
-    BUDGET_PLAN = 'budget_plan', 'Budget Plan'
-    MATERIAL_DELIVERY_ORDER = 'material_delivery_order', 'Material Delivery Order'
-    USAGE_REPORT = 'usage_report', 'Usage Report'
-    SAFETY_PLAN = 'safety_plan', 'Safety Plan'
-    ACCIDENT_REPORT = 'accident_report', 'Accident Report'
-    HANDOVER_CERTIFICATE = 'handover_certificate', 'Handover Certificate'
-    WARRANTY_DOCUMENT = 'warranty_document', 'Warranty Document'
+# class DocumentType(models.TextChoices):
+#     PROJECT_PROPOSAL = 'project_proposal', 'Project Proposal'
+#     FEASIBILITY_STUDY = 'feasibility_study', 'Feasibility Study'
+#     DESIGN_BLUEPRINT = 'design_blueprint', 'Design Blueprint'
+#     CONTRACT_AGREEMENT = 'contract_agreement', 'Contract Agreement'
+#     SUBCONTRACT_AGREEMENT = 'subcontract_agreement', 'Subcontract Agreement'
+#     PURCHASE_ORDER = 'purchase_order', 'Purchase Order'
+#     PERMIT_APPLICATION = 'permit_application', 'Permit Application'
+#     INSURANCE_DOCUMENT = 'insurance_document', 'Insurance Document'
+#     DAILY_PROGRESS_REPORT = 'daily_progress_report', 'Daily Progress Report'
+#     WEEKLY_PROGRESS_REPORT = 'weekly_progress_report', 'Weekly Progress Report'
+#     MONTHLY_PROGRESS_REPORT = 'monthly_progress_report', 'Monthly Progress Report'
+#     INSPECTION_REPORT = 'inspection_report', 'Inspection Report'
+#     MEETING_MINUTES = 'meeting_minutes', 'Meeting Minutes'
+#     PAYMENT_REQUEST = 'payment_request', 'Payment Request'
+#     INVOICE = 'invoice', 'Invoice'
+#     BUDGET_PLAN = 'budget_plan', 'Budget Plan'
+#     MATERIAL_DELIVERY_ORDER = 'material_delivery_order', 'Material Delivery Order'
+#     USAGE_REPORT = 'usage_report', 'Usage Report'
+#     SAFETY_PLAN = 'safety_plan', 'Safety Plan'
+#     ACCIDENT_REPORT = 'accident_report', 'Accident Report'
+#     HANDOVER_CERTIFICATE = 'handover_certificate', 'Handover Certificate'
+#     WARRANTY_DOCUMENT = 'warranty_document', 'Warranty Document'
 
 class DocumentStatus(models.TextChoices):
     DRAFT = 'draft', 'Draft'
@@ -51,13 +52,13 @@ class ApprovalLevel(models.TextChoices):
     LEVEL_2 = 'level_2', 'Level 2'
     LEVEL_3 = 'level_3', 'Level 3'
 
-class WorkType(models.TextChoices):
-    FOUNDATION = "foundation", "Foundation"
-    STRUCTURE = "structure", "Structure"
-    FINISHING = "finishing", "Finishing"
-    ARCHITECTURE = "architecture", "Architecture"
-    MEP = "mep", "MEP"
-    OTHER = "other", "Other"
+# class WorkType(models.TextChoices):
+#     FOUNDATION = "foundation", "Foundation"
+#     STRUCTURE = "structure", "Structure"
+#     FINISHING = "finishing", "Finishing"
+#     ARCHITECTURE = "architecture", "Architecture"
+#     MEP = "mep", "MEP"
+#     OTHER = "other", "Other"
 
 class ErrorLogStatus(models.TextChoices):
     OPEN = "open", "Open"
@@ -102,6 +103,18 @@ def upload_document(instance, filename):
     new_name = f"DCP_{timestamp_now}{ext}"
     return os.path.join('document_project', new_name)
 
+def upload_drawing(instance, filename):
+    base, ext = os.path.splitext(filename)
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    new_name = f"DRW_{timestamp_now}{ext}"
+    return os.path.join('drawing_project', new_name)
+
+def upload_defect(instance, filename):
+    base, ext = os.path.splitext(filename)
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    new_name = f"DFT_{timestamp_now}{ext}"
+    return os.path.join('defect_project', new_name)
+
 def upload_error_proof(instance, filename):
     timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
     filename = f'ERR_{timestamp_now}.jpeg'
@@ -143,13 +156,13 @@ class Project(AuditModel):
 class Document(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_documents')
-    document_type = models.CharField(max_length=50, choices=DocumentType.choices)
+    document_type = models.ForeignKey(DocumentType, on_delete=models.PROTECT)
     document_name = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=DocumentStatus.choices, default=DocumentStatus.DRAFT)
     approval_required = models.BooleanField(default=True)
     approval_level = models.CharField(max_length=20, choices=ApprovalLevel.choices, null=True, blank=True)
-    issue_date = models.DateField()
-    due_date = models.DateField()
+    issue_date = models.DateField(verbose_name="Upload Date")
+    due_date = models.DateField(verbose_name="Deadline Date")
 
     def __str__(self) -> str:
         return f'{self.project.project_name} {self.document_name}'
@@ -158,20 +171,21 @@ class Document(AuditModel):
     def project_name(self):
         return self.project.project_name
 
-def detect_mime(uploaded_file):
-    # Baca sebagian konten untuk identifikasi
-    mime = magic.from_buffer(uploaded_file.read(1024), mime=True)
-    uploaded_file.seek(0)  # Reset pointer
-    return mime
+# def detect_mime(uploaded_file):
+#     # Baca sebagian konten untuk identifikasi
+#     mime = magic.from_buffer(uploaded_file.read(1024), mime=True)
+#     uploaded_file.seek(0)  # Reset pointer
+#     return mime
 
 class DocumentVersion(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='versions')
     title = models.CharField(max_length=255)
     document_file = models.FileField(upload_to=upload_document)
-    mime_type = models.CharField(max_length=50, blank=True, null=True)
     document_number = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=DocumentStatus.choices, default=DocumentStatus.DRAFT)
     notes = models.TextField()
+    comment = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
         return f'{self.document.document_name} {self.document_number}'
@@ -192,6 +206,87 @@ class SignatureOnDocument(AuditModel):
     def __str__(self) -> str:
         return f'Signature {self.signature.user.full_name} on {self.document.document_name}'
     
+class Drawing(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_drawings')
+    drawing_type = models.ForeignKey(DocumentType, on_delete=models.PROTECT)
+    document_name = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, choices=DocumentStatus.choices, default=DocumentStatus.DRAFT)
+    issue_date = models.DateField(verbose_name="Upload Date")
+    due_date = models.DateField(verbose_name="Deadline Date")
+
+    def __str__(self) -> str:
+        return f'{self.project.project_name} {self.file_name}'
+    
+    def save(self, *args, **kwargs):
+        if self.status == DocumentStatus.APPROVED:
+            document,is_created = Document.objects.get_or_create(
+                project=self.project,
+                document_type=self.drawing_type,
+                document_name=self.document_name,
+                status=DocumentStatus.APPROVED,
+                approval_required=True,
+                approval_level=ApprovalLevel.LEVEL_1,
+                issue_date=self.issue_date,
+                due_date=self.due_date
+            )
+            version = DrawingVersion.objects.filter(
+                boq=self,
+                status=DocumentStatus.APPROVED
+            ).first()
+            if is_created and version:
+                DocumentVersion.objects.create(
+                    document=document,
+                    document_number=version.document_number,
+                    document_file=version.drawing_file,
+                    title=version.title,
+                    status=DocumentStatus.APPROVED,
+                    notes=version.notes
+                )
+            elif not is_created and version:
+                # Update existing document version
+                DocumentVersion.objects.filter(document=document).update(
+                    document_number=version.document_number,
+                    document_file=version.drawing_file,
+                    title=version.title,
+                    status=DocumentStatus.APPROVED,
+                    notes=version.notes
+                )
+        return super().save(*args, **kwargs)
+
+    @property
+    def project_name(self):
+        return self.project.project_name
+
+class DrawingVersion(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    drawing = models.ForeignKey(Drawing, on_delete=models.CASCADE, related_name='drawing_versions')
+    title = models.CharField(max_length=255)
+    drawing_file = models.FileField(upload_to=upload_drawing)
+    document_number = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=DocumentStatus.choices, default=DocumentStatus.DRAFT)
+    notes = models.TextField()
+    comment = models.TextField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.drawing.document_name} {self.document_number}'
+
+    def save(self, *args, **kwargs):
+        # Jika file baru diupload
+        # self.mime_type = detect_mime(self.file) 
+        # if isinstance(self.file, UploadedFile):
+        #     self.mime_type = self.file.content_type  # :contentReference[oaicite:3]{index=3}
+        super().save(*args, **kwargs)
+
+class SignatureOnDrawing(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    signature = models.ForeignKey(Signature, on_delete=models.CASCADE)
+    photo_proof = models.ImageField(upload_to=upload_signature_proof)
+    document = models.ForeignKey(Drawing, on_delete=models.CASCADE, related_name='drawing_signatures')
+
+    def __str__(self) -> str:
+        return f'Signature {self.signature.user.full_name} on {self.document.document_name}'
+    
 class Defect(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_deflect')
@@ -203,11 +298,12 @@ class Defect(AuditModel):
     def __str__(self) -> str:
         return f'Deflect {self.work_title} on {self.project.project_name}'
 
-class DeflectDetail(AuditModel):
+class DefectDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='deflect_detail')
     location_detail = models.CharField(max_length=255)
-    deviation = models.FloatField()
+    deviation = models.CharField(max_length=255)
+    photo = models.ImageField(upload_to=upload_defect, null=True, blank=True)
     initial_checklist_date = models.DateTimeField()
     initial_checklist_approval = models.ForeignKey(Initial, on_delete=models.SET_NULL, null=True, blank=True, related_name='initial_approval')
     final_checklist_date = models.DateTimeField()
@@ -229,8 +325,8 @@ class SignatureOnDeflect(AuditModel):
 class ErrorLog(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='error_on_project')
+    work_type = models.ForeignKey(WorkType, on_delete=models.PROTECT)
     document_number = models.CharField(max_length=255)
-    work_type = models.CharField(max_length=20, choices=WorkType.choices)
     periode_start = models.DateTimeField()
     periode_end = models.DateTimeField()
     notes = models.TextField()
@@ -264,7 +360,7 @@ class SignatureOnErrorLog(AuditModel):
 
 class Schedule(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    boq_item = models.ForeignKey('finance.BillOfQuantityItemDetail', on_delete=models.CASCADE, related_name='schedules_boq')
+    boq_item = models.ForeignKey('finance.BillOfQuantity', on_delete=models.CASCADE, related_name='schedules_boq')
     duration = models.FloatField()
     duration_in_field = models.FloatField(null=True, blank=True)
     duration_for_client = models.FloatField(null=True, blank=True)
@@ -277,14 +373,24 @@ class Schedule(AuditModel):
 
     def __str__(self) -> str:
         try:
-            return f'Schedule for {self.boq_item.bill_of_quantity_subitem.bill_of_quantity_item.title}'
+            return f'Schedule for {self.boq_item.document_name}'
         except Exception:
             return f'Schedule {self.pk}'
-    
-class WeeklyReport(AuditModel):
+
+class SignatureOnSchedule(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    boq_item = models.ForeignKey('finance.BillOfQuantityItemDetail', on_delete=models.CASCADE, related_name='reports_boq')
-    week_number = models.IntegerField()
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='schedule_signature')
+    signature = models.ForeignKey(Signature, on_delete=models.SET_NULL, null=True, blank=True)
+    photo_proof = models.ImageField(upload_to=upload_signature_proof)
+
+    def __str__(self) -> str:
+        return f'Signature {self.signature.user.username} on Schedule {self.schedule.boq_item.document_name}'
+    
+class ProgressReport(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    boq_item = models.ForeignKey('finance.BillOfQuantity', on_delete=models.CASCADE, related_name='reports_boq')
+    type = models.CharField(max_length=25, choices=DurationType.choices, default=DurationType.WEEKS)
+    progress_number = models.IntegerField()
     report_date = models.DateField()
     progress_percentage = models.FloatField()
     notes = models.TextField()
@@ -292,7 +398,7 @@ class WeeklyReport(AuditModel):
 
     def __str__(self) -> str:
         try:
-            return f'Report for {self.boq_item.bill_of_quantity_subitem.bill_of_quantity_item.title} in week {self.week_number}'
+            return f'Report for {self.boq_item.document_name} in week {self.week_number}'
         except Exception:
             return f'Schedule {self.pk}'
 
@@ -301,7 +407,7 @@ class WorkMethod(AuditModel):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     work_title = models.CharField(max_length=255)
     document_number = models.CharField(max_length=255)
-    photo = models.FileField(upload_to=upload_work_method_photo)
+    file = models.FileField(upload_to=upload_work_method_photo)
     notes = models.TextField()
 
     def __str__(self) -> str:

@@ -2,62 +2,61 @@ from django.contrib import admin, messages
 import nested_admin
 from rangefilter.filters import DateRangeFilter, NumericRangeFilter
 from .models import *
-from project.models import Schedule
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .resources import *
-from import_export.admin import ImportExportMixin, ImportExportModelAdmin
+from import_export.admin import ImportExportMixin
 import io
 import pandas as pd
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from .forms import MultiSheetImportForm
 
-class ScheduleInline(nested_admin.NestedTabularInline):
-    model   = Schedule
-    extra   = 0
-    fields  = (
-        'boq_item', 
-        'start_date', 
-        'end_date', 
-        'duration', 
-        'duration_in_field', 
-        'duration_for_client', 
-        'duration_type', 
-        'status', 
-        'attachment', 
-        'notes'
-    )
+# class ScheduleInline(nested_admin.NestedTabularInline):
+#     model   = Schedule
+#     extra   = 0
+#     fields  = (
+#         'boq_item', 
+#         'start_date', 
+#         'end_date', 
+#         'duration', 
+#         'duration_in_field', 
+#         'duration_for_client', 
+#         'duration_type', 
+#         'status', 
+#         'attachment', 
+#         'notes'
+#     )
 
-class BillOfQuantityItemDetailInline(nested_admin.NestedTabularInline):
-    model   = BillOfQuantityItemDetail
-    inlines = [ScheduleInline]
-    extra   = 0
-    fields  = (
-        'item_number',
-        'description',
-        'quantity',
-        'unit_type',
-        'unit_price',
-        'total_price',
-        'work_weight',
-        'notes',
-    )
-    readonly_fields = ('total_price',)
+# class BillOfQuantityItemDetailInline(nested_admin.NestedTabularInline):
+#     model   = BillOfQuantityItemDetail
+#     inlines = [ScheduleInline]
+#     extra   = 0
+#     fields  = (
+#         'item_number',
+#         'description',
+#         'quantity',
+#         'unit_type',
+#         'unit_price',
+#         'total_price',
+#         'work_weight',
+#         'notes',
+#     )
+#     readonly_fields = ('total_price',)
 
-class BillOfQuantitySubItemInline(nested_admin.NestedTabularInline):
-    model   = BillOfQuantitySubItem
-    inlines = [BillOfQuantityItemDetailInline]
-    extra   = 0
-    fields  = ('item_order', 'title', 'notes',)
-    readonly_fields = ('total_price',)
+# class BillOfQuantitySubItemInline(nested_admin.NestedTabularInline):
+#     model   = BillOfQuantitySubItem
+#     inlines = [BillOfQuantityItemDetailInline]
+#     extra   = 0
+#     fields  = ('item_order', 'title', 'notes',)
+#     readonly_fields = ('total_price',)
 
-class BillOfQuantityItemInline(nested_admin.NestedTabularInline):
-    model   = BillOfQuantityItem
-    inlines = [BillOfQuantitySubItemInline]
-    extra   = 0
-    fields  = ('item_number', 'title', 'notes')
-    show_change_link = True
+# class BillOfQuantityItemInline(nested_admin.NestedTabularInline):
+#     model   = BillOfQuantityItem
+#     inlines = [BillOfQuantitySubItemInline]
+#     extra   = 0
+#     fields  = ('item_number', 'title', 'notes')
+#     show_change_link = True
 
 class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
     model   = SignatureOnBillOfQuantity
@@ -78,17 +77,70 @@ class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
                 kwargs['queryset'] = Signature.objects.none()
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+class BillOfQuantityVersionInline(nested_admin.NestedTabularInline):
+    model           = BillOfQuantityVersion
+    extra           = 0
+    fields          = ('title', 'document_number', 'boq_file', 'status', 'total', 'notes')
+
 @admin.register(BillOfQuantity)
 class BillOfQuantityAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
-    list_display    = ('project', 'status', 'start_date', 'end_date', 'total')
-    list_filter     = ('status', 'project', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter), ('total', NumericRangeFilter))
-    search_fields   = ('project__project_name', 'notes')
-    fields          = ('project', 'status', 'work_weight_total', 'total', 'start_date', 'end_date')
-    inlines         = [BillOfQuantityItemInline, SignatureOnBillOfQuantityInline]
+    list_display    = ('project', 'document_name', 'status', 'issue_date', 'due_date')
+    list_filter     = ('project', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level')
+    search_fields   = ('project__project_name', 'document_name')
+    fields          = ('project', 'document_name', 'status', 'approval_required', 'approval_level', 'issue_date', 'due_date', 'updated_by', 'updated_at', 'created_by', 'created_at')
+    readonly_fields = ('updated_by', 'updated_at', 'created_by', 'created_at')
+    inlines         = [BillOfQuantityVersionInline, ]  # hanya masukkan default di sini
 
-    # Override `get_import_resource_class` untuk return resource detail
-    # def get_import_resource_class(self):
-    #     return BOQDetailImportResource
+    def get_inline_instances(self, request, obj=None):
+        inline_instances = super().get_inline_instances(request, obj)
+
+        # Hanya tambahkan SignatureOnBillOfQuantityInline jika status Approve
+        if obj and obj.status == 'approved':  # Sesuaikan jika status choices punya nilai lain
+            inline_instances.append(SignatureOnBillOfQuantityInline(self.model, self.admin_site))
+
+        return inline_instances
+
+class SignatureOnPaymentRequestInline(nested_admin.NestedTabularInline):
+    model   = SignatureOnPaymentRequest
+    extra   = 0
+    fields  = ('signature', 'photo_proof')
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
+            try:
+                profile = request.user.profile
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
+            except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
+                kwargs['queryset'] = Signature.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+class PaymentRequestVersionInline(nested_admin.NestedTabularInline):
+    model           = PaymentRequestVersion
+    extra           = 0
+    fields          = ('title', 'payment_number', 'payment_file', 'status', 'total', 'notes')
+
+@admin.register(PaymentRequest)
+class PaymentRequestAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
+    list_display    = ('project', 'payment_name', 'status', 'issue_date', 'due_date')
+    list_filter     = ('project', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level')
+    search_fields   = ('project__project_name', 'payment_name')
+    fields          = ('project', 'payment_name', 'status', 'approval_required', 'approval_level', 'issue_date', 'due_date', 'updated_by', 'updated_at', 'created_by', 'created_at')
+    readonly_fields = ('updated_by', 'updated_at', 'created_by', 'created_at')
+    inlines         = [PaymentRequestVersionInline, ]  # hanya masukkan default di sini
+
+    def get_inline_instances(self, request, obj=None):
+        inline_instances = super().get_inline_instances(request, obj)
+
+        # Hanya tambahkan SignatureOnBillOfQuantityInline jika status Approve
+        if obj and obj.status == 'approved':  # Sesuaikan jika status choices punya nilai lain
+            inline_instances.append(SignatureOnPaymentRequestInline(self.model, self.admin_site))
+
+        return inline_instances
 
 #
 # Inlines for Expense → ExpenseDetail & ExpenseForMaterial

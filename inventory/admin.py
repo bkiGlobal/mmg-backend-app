@@ -19,13 +19,13 @@ class MaterialOnProjectInline(nested_admin.NestedTabularInline):
 
 @admin.register(Material)
 class MaterialAdmin(nested_admin.NestedModelAdmin):
-    list_display  = ('code', 'name', 'category', 'unit', 'standart_price')
+    list_display  = ('code', 'name', 'brand', 'category', 'unit', 'standart_price')
     fields        = (
-        'code', 'name', 'category',
+        'code', 'name', 'category', 'brand',
         'unit', 'standart_price', 'descriptions',
     )
     inlines       = [MaterialOnProjectInline]
-    list_filter   = ('category', 'unit', ('standart_price', NumericRangeFilter))
+    list_filter   = ('category', 'brand', 'unit', ('standart_price', NumericRangeFilter))
     search_fields = ('code', 'name', 'descriptions')
 
 
