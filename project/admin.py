@@ -206,18 +206,18 @@ class SignatureOnWorkMethodInline(nested_admin.NestedTabularInline):
 
 @admin.register(WorkMethod)
 class WorkMethodAdmin(nested_admin.NestedModelAdmin):
-    list_display  = ('project', 'display_photo', 'work_title', 'document_number', 'notes')
+    list_display  = ('project', 'work_title', 'document_number', 'notes')
     list_filter   = ('project',)
     search_fields = ('work_title', 'document_number', 'notes')
-    fields        = ('project', 'photo', 'work_title', 'document_number', 'notes')
+    fields        = ('project', 'file', 'work_title', 'document_number', 'notes')
     inlines       = [SignatureOnWorkMethodInline]
     
-    def display_photo(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo.url))
-        else:
-            return mark_safe('<span>No Image</span>')
-    display_photo.short_description = 'Photo'
+    # def display_photo(self, obj):
+    #     if obj.file:
+    #         return format_html('<img src="{}" width="50" height="50" />'.format(obj.file.url))
+    #     else:
+    #         return mark_safe('<span>No Image</span>')
+    # display_photo.short_description = 'Photo'
 
 # ──────────────── Project ────────────────
 
