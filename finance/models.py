@@ -239,7 +239,7 @@ class PaymentRequest(AuditModel):
     due_date = models.DateField(verbose_name="Deadline Date", null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.project.project_name} {self.document_name}'
+        return f'{self.project.project_name} {self.payment_name}'
     
     def save(self, *args, **kwargs):
         if self.status == DocumentStatus.APPROVED:
