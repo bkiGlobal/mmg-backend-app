@@ -273,7 +273,7 @@ class ProjectAdmin(nested_admin.NestedModelAdmin):
     list_filter    = ('project_status', 'client', 'team', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter))
     search_fields  = ('project_code', 'project_name', 'client__user__username', 'team__name', 'description')
     date_hierarchy = 'start_date'
-    fields         = ('project_code', 'project_name', 'location', 'client', 'team', 'start_date', 'end_date', 'project_status', 'progress_with_percent', 'description')
+    fields         = ('project_code', 'project_name', 'location', 'client', 'team', 'start_date', 'end_date', 'project_status', 'progress', 'description')
     inlines        = [DocumentInline, DeflectInline, ErrorLogInline, WorkMethodInline, SubContractorOnProjectInline, BillOfQuantityInline]
 
     def progress_with_percent(self, obj):
