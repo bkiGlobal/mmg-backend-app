@@ -41,6 +41,16 @@ def upload_income_proof(instance, filename):
     filename = f'INC_{timestamp_now}.jpeg'
     return os.path.join('income_proof_photo', filename)
 
+def upload_finance_proof(instance, filename):
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    filename = f'FNC_{timestamp_now}.jpeg'
+    return os.path.join('finance_proof_photo', filename)
+
+def upload_petty_cash_proof(instance, filename):
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    filename = f'FNC_{timestamp_now}.jpeg'
+    return os.path.join('petty_cash_proof_photo', filename)
+
 def upload_boq(instance, filename):
     base, ext = os.path.splitext(filename)
     timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
@@ -419,59 +429,89 @@ class ExpenseForMaterial(AuditModel):
         # 2) Setelah detail tersimpan, hitung ulang total di header (Income)
         self.expense.recalc_total()
     
-class Income(AuditModel):
+# class Income(AuditModel):
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_income', null=True, blank=True)
+#     category = models.ForeignKey(IncomeCategory, on_delete=models.PROTECT)
+#     received_from = models.CharField(max_length=255)
+#     total = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
+#     payment_date = models.DateField()
+#     notes = models.TextField()
+#     payment_proof = models.ImageField(upload_to=upload_income_proof)
+
+#     def __str__(self) -> str:
+#         return f'Income on {self.payment_date}'
+    
+#     @property
+#     def project_name(self):
+#         return self.project.project_name if self.project else None
+    
+#     def recalc_total(self):
+#         """
+#         Hitung ulang total dari semua detail di bawah objek Income ini.
+#         """
+#         # Kita perlu menjumlahkan `total_price` semua BillOfQuantityItemDetail
+#         agg = IncomeDetail.objects.filter(
+#             income=self
+#         ).aggregate(sum_total=Sum('total'))
+#         self.total = agg['sum_total'] or Decimal('0.0')
+#         self.save(update_fields=['total'])
+
+# class IncomeDetail(AuditModel):
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     income = models.ForeignKey(Income, on_delete=models.CASCADE, related_name='income_detail')
+#     unit = models.ForeignKey(UnitType, on_delete=models.PROTECT)
+#     name = models.CharField(max_length=255)
+#     quantity = models.FloatField()
+#     unit_price = models.FloatField()
+#     subtotal = MoneyField(max_digits=16, decimal_places=2, default_currency='IDR')
+#     discount = models.FloatField(default=0.0)
+#     discount_type = models.CharField(max_length=20, choices=DiscountType.choices, null=True, blank=True)
+#     discount_amount = models.FloatField(default=0.0)
+#     total = MoneyField(max_digits=16, decimal_places=2, default_currency='IDR')
+#     notes = models.TextField()
+
+#     def __str__(self) -> str:
+#         return f'Income Detail {self.name} on {self.income.payment_date}'
+    
+#     def save(self, *args, **kwargs):
+#         self.subtotal = (self.quantity or 0) * (self.unit_price or 0)
+#         if self.discount_type == DiscountType.PERCENTAGE:
+#             self.discount_amount = (self.subtotal * self.discount) / 100
+#         elif self.discount_type == DiscountType.FIXED:
+#             self.discount_amount = self.discount
+#         self.total = self.subtotal - self.discount_amount
+#         super().save(*args, **kwargs)
+
+#         # 2) Setelah detail tersimpan, hitung ulang total di header (Income)
+#         self.income.recalc_total()
+
+class FinanceData(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_income', null=True, blank=True)
-    category = models.ForeignKey(IncomeCategory, on_delete=models.PROTECT)
-    received_from = models.CharField(max_length=255)
-    total = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
-    payment_date = models.DateField()
-    notes = models.TextField()
-    payment_proof = models.ImageField(upload_to=upload_income_proof)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_finance_data', null=True, blank=True)
+    other = models.CharField(max_length=255, null=True, blank=True)
+    date = models.DateField(default=timezone.now)
+    description = models.TextField()
+    debet = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
+    credit = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
+    balance = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
+    photo_proof = models.ImageField(upload_to=upload_finance_proof, null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'Income on {self.payment_date}'
+        return f'Finance Data for {self.project.project_name}'
     
-    @property
-    def project_name(self):
-        return self.project.project_name if self.project else None
-    
-    def recalc_total(self):
-        """
-        Hitung ulang total dari semua detail di bawah objek Income ini.
-        """
-        # Kita perlu menjumlahkan `total_price` semua BillOfQuantityItemDetail
-        agg = IncomeDetail.objects.filter(
-            income=self
-        ).aggregate(sum_total=Sum('total'))
-        self.total = agg['sum_total'] or Decimal('0.0')
-        self.save(update_fields=['total'])
-
-class IncomeDetail(AuditModel):
+class PettyCash(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    income = models.ForeignKey(Income, on_delete=models.CASCADE, related_name='income_detail')
-    unit = models.ForeignKey(UnitType, on_delete=models.PROTECT)
-    name = models.CharField(max_length=255)
-    quantity = models.FloatField()
-    unit_price = models.FloatField()
-    subtotal = MoneyField(max_digits=16, decimal_places=2, default_currency='IDR')
-    discount = models.FloatField(default=0.0)
-    discount_type = models.CharField(max_length=20, choices=DiscountType.choices, null=True, blank=True)
-    discount_amount = models.FloatField(default=0.0)
-    total = MoneyField(max_digits=16, decimal_places=2, default_currency='IDR')
-    notes = models.TextField()
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_petty_cash', null=True, blank=True)
+    type = models.ForeignKey(FinanceType, on_delete=models.PROTECT)
+    payment_via = models.ForeignKey(PaymentVia, on_delete=models.PROTECT)
+    other = models.CharField(max_length=255, null=True, blank=True)
+    date = models.DateField(default=timezone.now)
+    description = models.TextField()
+    debet = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
+    credit = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
+    balance = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
+    photo_proof = models.ImageField(upload_to=upload_finance_proof)
 
     def __str__(self) -> str:
-        return f'Income Detail {self.name} on {self.income.payment_date}'
-    
-    def save(self, *args, **kwargs):
-        self.subtotal = (self.quantity or 0) * (self.unit_price or 0)
-        if self.discount_type == DiscountType.PERCENTAGE:
-            self.discount_amount = (self.subtotal * self.discount) / 100
-        elif self.discount_type == DiscountType.FIXED:
-            self.discount_amount = self.discount
-        self.total = self.subtotal - self.discount_amount
-        super().save(*args, **kwargs)
-
-        # 2) Setelah detail tersimpan, hitung ulang total di header (Income)
-        self.income.recalc_total()
+        return f'Petty Cash for {self.project.project_name}'

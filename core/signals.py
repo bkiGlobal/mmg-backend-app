@@ -49,3 +49,15 @@ def create_default_unit_types(sender, **kwargs):
                           "Tray", "Roller", "Month", "Lump Sum"]
     for name in default_types:
         UnitType.objects.get_or_create(name=name)
+
+@receiver(post_migrate)
+def create_default_finance_types(sender, **kwargs):
+    default_categories = ["Capital", "Asset", "Operational", "Loan", "Entertaiment", "Equipment", "Transport", "Subcontractor", 'Salary', 'Income', 'Tax', 'Insurance']
+    for name in default_categories:
+        FinanceType.objects.get_or_create(name=name)
+
+@receiver(post_migrate)
+def create_default_payment_via(sender, **kwargs):
+    default_categories = ["Cash", "Transfer"]
+    for name in default_categories:
+        PaymentVia.objects.get_or_create(name=name)

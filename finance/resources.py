@@ -123,30 +123,30 @@ from finance.models import *
 #         boq = instance.bill_of_quantity_subitem.bill_of_quantity_item.bill_of_quantity
 #         boq.recalc_total()
 
-class IncomeDetailInlineResource(resources.ModelResource):
-    class Meta:
-        model = IncomeDetail
-        fields = (
-            'income',
-            'name', 'quantity', 'unit_price', 'unit', 
-            'subtotal', 'discount', 'discount_type', 
-            'discount_amount', 'total', 'notes'
-        )
-        import_id_fields = ('id',)
+# class IncomeDetailInlineResource(resources.ModelResource):
+#     class Meta:
+#         model = IncomeDetail
+#         fields = (
+#             'income',
+#             'name', 'quantity', 'unit_price', 'unit', 
+#             'subtotal', 'discount', 'discount_type', 
+#             'discount_amount', 'total', 'notes'
+#         )
+#         import_id_fields = ('id',)
 
-class IncomeResource(resources.ModelResource):
-    class Meta:
-        model = Income
-        skip_unchanged = True
-        report_skipped = True
-        fields = ('id','project','received_from','total','category','payment_date','notes')
+# class IncomeResource(resources.ModelResource):
+#     class Meta:
+#         model = Income
+#         skip_unchanged = True
+#         report_skipped = True
+#         fields = ('id','project','received_from','total','category','payment_date','notes')
 
-class IncomeDetailResource(resources.ModelResource):
-    class Meta:
-        model = IncomeDetail
-        skip_unchanged = True
-        report_skipped = True
-        fields = ('id','income','name','quantity','unit_price','unit','subtotal','discount','discount_type','discount_amount','total','notes')
+# class IncomeDetailResource(resources.ModelResource):
+#     class Meta:
+#         model = IncomeDetail
+#         skip_unchanged = True
+#         report_skipped = True
+#         fields = ('id','income','name','quantity','unit_price','unit','subtotal','discount','discount_type','discount_amount','total','notes')
 
 class ExpenseResource(resources.ModelResource):
     class Meta:
@@ -178,3 +178,44 @@ class ExpenseForMaterialResource(resources.ModelResource):
             'subtotal', 'discount', 'discount_type', 
             'discount_amount', 'total'
         )
+
+class FinanceDataResource(resources.ModelResource):
+    class Meta:
+        model = FinanceData
+        # Hanya kolom‐kolom yang akan di‐import/export
+        fields = (
+            'project',
+            'other',
+            'date',
+            'description',
+            'debet',
+            'credit',
+            'balance',
+            'photo_proof',
+            'created_by',
+            'created_at',
+            'updated_by',
+            'updated_at',
+        )
+        import_id_fields = ('id',)
+
+class PettyCashResource(resources.ModelResource):
+    class Meta:
+        model = PettyCash
+        fields = (
+            'project',
+            'other',
+            'date',
+            'description',
+            'type',
+            'payment_via',
+            'debet',
+            'credit',
+            'balance',
+            'photo_proof',
+            'created_by',
+            'created_at',
+            'updated_by',
+            'updated_at',
+        )
+        import_id_fields = ('id',)

@@ -31,7 +31,7 @@ class AuditModel(models.Model):
             self.created_by = user
         self.updated_by = user
         super().save(*args, **kwargs)
-        
+
     def delete(self, using=None, keep_parents=False):
         """
         Soft delete: tandai tanpa hapus fisik.
@@ -107,6 +107,18 @@ class UnitType(models.Model):
         return self.name
 
 class Brand(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class FinanceType(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class PaymentVia(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
