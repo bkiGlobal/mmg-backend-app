@@ -63,6 +63,19 @@ class InitialInline(admin.TabularInline):
                 kwargs['queryset'] = Initial.objects.none()
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+
+# ──────────────── Attendance ────────────────
+@admin.register(Attendance)
+class AttendanceModelAdmin(admin.ModelAdmin):
+    list_display    = ('user', 'date', 'check_in', 'check_out', 'status')
+    list_filter     = ('user', 'date', 'status')
+    search_fields   = ('user__full_name', 'status')
+    fields          = ('user', 'date', 'check_in', 'check_out', 'check_in_location', 'check_out_location', 'status', 'photo_check_in', 'photo_check_out')
+
+    formfield_overrides = {
+        gis_models.PointField: {'widget': mapwidgets.GoogleMapPointFieldWidget}
+    }
+
 # ──────────────── Attendance ────────────────
 class AttendanceInline(admin.TabularInline):
     model           = Attendance
