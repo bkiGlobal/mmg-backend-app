@@ -3,6 +3,7 @@ from django.utils.html import format_html
 from .models import *
 from rangefilter.filters import DateRangeFilter
 from django.utils.safestring import mark_safe
+import mapwidgets
 
 
 # ──────────────── Team & Members ────────────────
@@ -65,9 +66,13 @@ class InitialInline(admin.TabularInline):
 # ──────────────── Attendance ────────────────
 class AttendanceInline(admin.TabularInline):
     model           = Attendance
-    extra           = 0
+    extra           = 1
     fields          = ('date', 'check_in', 'check_out', 'check_in_location', 'check_out_location', 'status', 'photo_check_in', 'photo_check_out')
 
+    formfield_overrides = {
+        gis_models.PointField: {'widget': mapwidgets.GoogleMapPointFieldWidget}
+    }
+    
 class LeaveRequestInline(admin.TabularInline):
     model           = LeaveRequest
     extra           = 0
