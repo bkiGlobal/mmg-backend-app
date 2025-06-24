@@ -216,7 +216,7 @@ class Drawing(AuditModel):
     due_date = models.DateField(verbose_name="Deadline Date")
 
     def __str__(self) -> str:
-        return f'{self.project.project_name} {self.file_name}'
+        return f'{self.project.project_name} {self.document_name}'
     
     def save(self, *args, **kwargs):
         if self.status == DocumentStatus.APPROVED:
@@ -398,7 +398,7 @@ class ProgressReport(AuditModel):
 
     def __str__(self) -> str:
         try:
-            return f'Report for {self.boq_item.document_name} in week {self.week_number}'
+            return f'Report for {self.boq_item.document_name} in {self.type} {self.progress_number}'
         except Exception:
             return f'Schedule {self.pk}'
 
