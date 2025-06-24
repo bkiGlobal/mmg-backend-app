@@ -11,9 +11,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='attendance',
-            name='check_out_location',
-            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, spatial_index=False, srid=4326),
-        ),
+        # migrations.AlterField(
+        #     model_name='attendance',
+        #     name='check_out_location',
+        #     field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, spatial_index=False, srid=4326),
+        # ),
     ]
