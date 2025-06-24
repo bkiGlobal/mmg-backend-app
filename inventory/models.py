@@ -93,7 +93,6 @@ class Material(AuditModel):
     name = models.CharField(max_length=128)
     standart_price = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
     descriptions = models.TextField()
-
     def __str__(self) -> str:
         return self.name
     

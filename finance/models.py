@@ -226,7 +226,7 @@ class SignatureOnBillOfQuantity(AuditModel):
     boq = models.ForeignKey(BillOfQuantity, on_delete=models.CASCADE, related_name='boq_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.username} on BOQ {self.boq.project.project_name}'
+        return f'Signature {self.signature.user.full_name} on BOQ {self.boq.project.project_name}'
 
 class PaymentRequest(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -311,7 +311,7 @@ class SignatureOnPaymentRequest(AuditModel):
     document = models.ForeignKey(PaymentRequest, on_delete=models.CASCADE, related_name='payment_request_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.username} on Payment Request {self.document.project.project_name}'
+        return f'Signature {self.signature.user.full_name} on Payment Request {self.document.project.project_name}'
 
 class ExpenseOnProject(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

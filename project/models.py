@@ -320,7 +320,7 @@ class SignatureOnDeflect(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.username} on {self.deflect.work_title}'
+        return f'Signature {self.signature.user.full_name} on {self.deflect.work_title}'
     
 class ErrorLog(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -356,7 +356,7 @@ class SignatureOnErrorLog(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.username} on Error {self.error.work_type}'
+        return f'Signature {self.signature.user.full_name} on Error {self.error.work_type}'
 
 class Schedule(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -384,7 +384,7 @@ class SignatureOnSchedule(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.username} on Schedule {self.schedule.boq_item.document_name}'
+        return f'Signature {self.signature.user.full_name} on Schedule {self.schedule.boq_item.document_name}'
     
 class ProgressReport(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -420,4 +420,4 @@ class SignatureOnWorkMethod(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.username} on Work Method {self.work_method.document_number}'
+        return f'Signature {self.signature.user.full_name} on Work Method {self.work_method.document_number}'
