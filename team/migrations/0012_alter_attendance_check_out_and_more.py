@@ -12,16 +12,16 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # migrations.AlterField(
-        #     model_name='attendance',
-        #     name='check_out',
-        #     field=models.DateTimeField(blank=True, null=True),
-        # ),
         migrations.AlterField(
             model_name='attendance',
-            name='check_out_location',
-            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326),
+            name='check_out',
+            field=models.DateTimeField(blank=True, null=True),
         ),
+        # migrations.AlterField(
+        #     model_name='attendance',
+        #     name='check_out_location',
+        #     field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326),
+        # ),
         migrations.AlterField(
             model_name='attendance',
             name='photo_check_out',
