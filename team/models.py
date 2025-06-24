@@ -192,7 +192,7 @@ class Attendance(AuditModel):
     check_in = models.DateTimeField()
     check_out = models.DateTimeField(null=True, blank=True)
     check_in_location = gis_models.PointField()
-    check_out_location = gis_models.PointField(default='POINT(0 0)')
+    check_out_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
     status = models.CharField(max_length=20, choices=AttendanceStatus.choices)
     photo_check_in = models.ImageField(upload_to=upload_check_in)
     photo_check_out = models.ImageField(upload_to=upload_check_out, null=True, blank=True)

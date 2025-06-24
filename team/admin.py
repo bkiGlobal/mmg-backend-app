@@ -4,6 +4,7 @@ from .models import *
 from rangefilter.filters import DateRangeFilter
 from django.utils.safestring import mark_safe
 import mapwidgets
+from django.contrib.auth.models import User
 
 
 # ──────────────── Team & Members ────────────────
@@ -76,6 +77,26 @@ class AttendanceModelAdmin(admin.ModelAdmin):
         gis_models.PointField: {'widget': mapwidgets.GoogleMapPointFieldWidget}
     }
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
+        if not request.user.is_superuser:
+            if db_field.name == 'user':
+                try:
+                    user = request.user
+                    kwargs['queryset'] = User.objects.filter(pk=user.pk)
+                except Exception:
+                    # kalau user belum punya profile, kosongkan pilihan
+                    kwargs['queryset'] = User.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Superuser boleh lihat semua
+        if request.user.is_superuser:
+            return qs
+        # Non-superuser: hanya lihat record miliknya
+        return qs.filter(user__user=request.user)
+
 # ──────────────── Attendance ────────────────
 class AttendanceInline(admin.TabularInline):
     model           = Attendance
@@ -112,6 +133,14 @@ class ProfileAdmin(admin.ModelAdmin):
         else:
             return mark_safe('<span>No Image</span>')
     display_photo.short_description = 'Photo'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Superuser boleh lihat semua
+        if request.user.is_superuser:
+            return qs
+        # Non-superuser: hanya lihat record miliknya
+        return qs.filter(user=request.user)
 
 # ──────────────── Signature & Initial ────────────────
 
@@ -175,6 +204,14 @@ class LeaveRequestInline(admin.ModelAdmin):
             inline_instances.append(SignatureOnLeaveRequestInline(self.model, self.admin_site))
 
         return inline_instances
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Superuser boleh lihat semua
+        if request.user.is_superuser:
+            return qs
+        # Non-superuser: hanya lihat record miliknya
+        return qs.filter(user__user=request.user)
 
 # ──────────────── Notifications ────────────────
 
@@ -184,6 +221,14 @@ class NotificationsAdmin(admin.ModelAdmin):
     list_filter     = ('is_read', ('sent_at', DateRangeFilter))
     search_fields   = ('title', 'user__full_name', 'message')
     readonly_fields = ('id', 'sent_at')
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Superuser boleh lihat semua
+        if request.user.is_superuser:
+            return qs
+        # Non-superuser: hanya lihat record miliknya
+        return qs.filter(user__user=request.user)
 
 # ──────────────── SubContractor & Workers ────────────────
 
