@@ -257,7 +257,7 @@ class PaymentRequest(AuditModel):
                 due_date=self.due_date
             )
             version = PaymentRequestVersion.objects.filter(
-                boq=self,
+                payment_request=self,
                 status=DocumentStatus.APPROVED
             ).first()
             if is_created and version:

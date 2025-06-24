@@ -231,7 +231,7 @@ class Drawing(AuditModel):
                 due_date=self.due_date
             )
             version = DrawingVersion.objects.filter(
-                boq=self,
+                drawing=self,
                 status=DocumentStatus.APPROVED
             ).first()
             if is_created and version:
