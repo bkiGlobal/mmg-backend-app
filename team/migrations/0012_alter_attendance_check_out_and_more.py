@@ -12,11 +12,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='attendance',
-            name='check_out',
-            field=models.DateTimeField(blank=True, null=True),
-        ),
+        # migrations.AlterField(
+        #     model_name='attendance',
+        #     name='check_out',
+        #     field=models.DateTimeField(blank=True, null=True),
+        # ),
         migrations.AlterField(
             model_name='attendance',
             name='check_out_location',
