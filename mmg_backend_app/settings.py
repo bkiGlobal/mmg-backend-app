@@ -169,7 +169,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# TIME_ZONE = 'UTC'
+
+# Pilih salah satu zona waktu yang mewakili +08:00
+# Contoh untuk WITA (Makassar):
+TIME_ZONE = 'Asia/Singapore'
 
 USE_I18N = True
 
