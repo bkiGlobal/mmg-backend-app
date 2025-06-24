@@ -195,7 +195,7 @@ class Attendance(AuditModel):
     check_out_location = gis_models.PointField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=AttendanceStatus.choices)
     photo_check_in = models.ImageField(upload_to=upload_check_in)
-    photo_check_out = models.ImageField(upload_to=upload_check_out)
+    photo_check_out = models.ImageField(upload_to=upload_check_out, null=True, blank=True)
 
     def __str__(self) -> str:
         return f'Attendance {self.user.full_name} on {self.date}'
