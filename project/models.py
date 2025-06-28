@@ -127,8 +127,9 @@ def upload_schedule_attachment(instance, filename):
     return os.path.join('schedule_attachment_photo', filename)
 
 def upload_weekly_report_attachment(instance, filename):
+    base, ext = os.path.splitext(filename)
     timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
-    filename = f'WRA_{timestamp_now}.jpeg'
+    filename = f'PRA_{timestamp_now}{ext}'
     return os.path.join('weekly_report_attachment_photo', filename)
 
 def upload_work_method_photo(instance, filename):
@@ -394,7 +395,7 @@ class ProgressReport(AuditModel):
     report_date = models.DateField()
     progress_percentage = models.FloatField()
     notes = models.TextField()
-    attachment = models.ImageField(upload_to=upload_weekly_report_attachment)
+    attachment = models.FileField(upload_to=upload_weekly_report_attachment, null=True, blank=True)
 
     def __str__(self) -> str:
         try:

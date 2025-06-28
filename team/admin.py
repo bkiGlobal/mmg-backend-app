@@ -5,6 +5,7 @@ from rangefilter.filters import DateRangeFilter
 from django.utils.safestring import mark_safe
 import mapwidgets
 from django.contrib.auth.models import User
+from .forms import *
 
 
 # ──────────────── Team & Members ────────────────
@@ -68,10 +69,15 @@ class InitialInline(admin.TabularInline):
 # ──────────────── Attendance ────────────────
 @admin.register(Attendance)
 class AttendanceModelAdmin(admin.ModelAdmin):
+    # form = AttendanceAdminForm
     list_display    = ('user', 'date', 'check_in', 'check_out', 'status')
     list_filter     = ('user', 'date', 'status')
     search_fields   = ('user__full_name', 'status')
     fields          = ('user', 'date', 'check_in', 'check_out', 'check_in_location', 'check_out_location', 'status', 'photo_check_in', 'photo_check_out')
+    readonly_fields = ('date', 'check_in', 'check_out', 'status')
+
+    # class Media:
+    #     js = ('js/attendance_location.js',)
 
     formfield_overrides = {
         gis_models.PointField: {'widget': mapwidgets.GoogleMapPointFieldWidget}

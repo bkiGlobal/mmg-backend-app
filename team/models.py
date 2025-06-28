@@ -6,6 +6,7 @@ from core.models import AuditModel, Location
 from django_encrypted_filefield.fields import EncryptedImageField
 from django.contrib.gis.db import models as gis_models
 from django.conf import settings
+from datetime import time
 
 class RoleType(models.TextChoices):
     ADMIN = "admin", "Admin"
@@ -188,10 +189,10 @@ class SubContractorOnProject(AuditModel):
 class Attendance(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_attendance')
-    date = models.DateField()
-    check_in = models.DateTimeField()
+    date = models.DateField(auto_now_add=True)
+    check_in = models.DateTimeField(null=True, blank=True)
     check_out = models.DateTimeField(null=True, blank=True)
-    check_in_location = gis_models.PointField()
+    check_in_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
     check_out_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
     status = models.CharField(max_length=20, choices=AttendanceStatus.choices)
     photo_check_in = models.ImageField(upload_to=upload_check_in)
@@ -199,6 +200,38 @@ class Attendance(AuditModel):
 
     def __str__(self) -> str:
         return f'Attendance {self.user.full_name} on {self.date}'
+    
+    def save(self, *args, **kwargs):
+        self.set_attendance_status()
+        super().save(*args, **kwargs)
+    
+    def set_attendance_status(self):
+        """
+        Atur status absensi berdasarkan jam check in dan check out.
+        """
+        # Set default status jika belum ada jam
+        if not self.check_in and self.photo_check_in:
+            self.check_in = timezone.now()
+        elif not self.check_out and self.photo_check_out:
+            self.check_out = timezone.now()
+
+        # Batas waktu
+        batas_check_in = time(10, 0, 0)  # 10:00 pagi
+        batas_check_out = time(18, 0, 0)  # 18:00 / 6 sore
+
+        jam_check_in = self.check_in.time()
+        jam_check_out = self.check_out.time() if self.check_out else None
+
+        if jam_check_in <= batas_check_in and (not jam_check_out or jam_check_out >= batas_check_out):
+            self.status = AttendanceStatus.ONTIME
+        elif jam_check_in > batas_check_in and (not jam_check_out or jam_check_out >= batas_check_out):
+            self.status = AttendanceStatus.LATE
+        elif jam_check_in <= batas_check_in and jam_check_out and jam_check_out < batas_check_out:
+            self.status = AttendanceStatus.EARLY_LEAVE
+        elif jam_check_in > batas_check_in and jam_check_out and jam_check_out < batas_check_out:
+            self.status = AttendanceStatus.LATE_EARLY_LEAVE
+        else:
+            self.status = AttendanceStatus.ONTIME  # fallback default
     
 class LeaveRequest (AuditModel):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_leave_request')
