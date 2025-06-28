@@ -188,9 +188,9 @@ class SignatureOnLeaveRequestInline(admin.TabularInline):
 @admin.register(LeaveRequest)
 class LeaveRequestInline(admin.ModelAdmin):
     list_display    = ('status', 'start_date', 'end_date', 'reason', 'photo_proof', 'approved_by', 'approved_date')
-    list_filter     = ('status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter), ('approved_date', DateRangeFilter), 'approved_by')
+    list_filter     = ('user' ,'status', ('start_date', DateRangeFilter), ('end_date', DateRangeFilter), ('approved_date', DateRangeFilter), 'approved_by')
     search_fields   = ('reason', )
-    fields          = ('status', 'start_date', 'end_date', 'reason', 'photo_proof')
+    fields          = ('user' ,'status', 'start_date', 'end_date', 'reason', 'photo_proof')
     readonly_fields = ('approved_by', 'approved_date')
 
     def save_model(self, request, obj, form, change):
