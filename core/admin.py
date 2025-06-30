@@ -2,8 +2,21 @@ from django.contrib.gis.db import models as gis_models
 from django.contrib import admin
 from .models import *
 import mapwidgets
+from django.contrib.admin.models import LogEntry
+from django.utils.translation import gettext_lazy as _
 
-admin.site.site_url = 'https://mmg-construction.com/'  
+admin.site.site_url = 'https://mmg-construction.com/' 
+
+@admin.register(LogEntry)
+class LogEntryAdmin(admin.ModelAdmin):
+    list_display   = ('action_time','user','content_type','object_repr','action_flag','change_message')
+    list_filter    = ('action_flag','user','content_type')
+    search_fields  = ('object_repr','change_message')
+    date_hierarchy = 'action_time'
+    ordering       = ('-action_time',)
+    # hide the “add” button, karena kita tidak mau orang bikin manual
+    def has_add_permission(self, request):
+        return False 
 
 @admin.register(Location)
 class LocationsModelAdmin(admin.ModelAdmin):
