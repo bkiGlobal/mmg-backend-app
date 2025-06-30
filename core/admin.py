@@ -7,16 +7,17 @@ from django.utils.translation import gettext_lazy as _
 
 admin.site.site_url = 'https://mmg-construction.com/' 
 
-@admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
-    list_display   = ('action_time','user','content_type','object_repr','action_flag','change_message')
-    list_filter    = ('action_flag','user','content_type')
-    search_fields  = ('object_repr','change_message')
+    list_display = ('user', 'action_flag', 'content_type', 'object_repr', 'action_time')
+    list_filter = ('action_flag', 'user')
+    search_fields = ('object_repr',)
     date_hierarchy = 'action_time'
     ordering       = ('-action_time',)
     # hide the “add” button, karena kita tidak mau orang bikin manual
     def has_add_permission(self, request):
         return False 
+
+admin.site.register(LogEntry, LogEntryAdmin)
 
 @admin.register(Location)
 class LocationsModelAdmin(admin.ModelAdmin):
