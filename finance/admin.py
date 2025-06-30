@@ -129,7 +129,7 @@ class PaymentRequestAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
     list_display    = ('project', 'payment_name', 'status', 'issue_date', 'due_date')
     list_filter     = ('project', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level')
     search_fields   = ('project__project_name', 'payment_name')
-    fields          = ('project', 'payment_name', 'status', 'approval_required', 'approval_level', 'issue_date', 'due_date', 'updated_by', 'updated_at', 'created_by', 'created_at')
+    fields          = ('project', 'payment_name', 'status', 'payment_proof', 'approval_required', 'approval_level', 'issue_date', 'due_date', 'updated_by', 'updated_at', 'created_by', 'created_at')
     readonly_fields = ('updated_by', 'updated_at', 'created_by', 'created_at')
     inlines         = [PaymentRequestVersionInline, ]  # hanya masukkan default di sini
 
