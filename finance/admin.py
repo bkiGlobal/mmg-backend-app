@@ -106,17 +106,25 @@ class SignatureOnPaymentRequestInline(nested_admin.NestedTabularInline):
     fields  = ('signature', 'photo_proof')
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        # ketika field yang sedang dirender adalah 'signature'
         if db_field.name == 'signature':
-            # filter queryset agar hanya signature milik user yang login
-            # asumsinya: Signature.user adalah FK ke Profile, 
-            # dan Profile punya relasi satu-ke-satu dengan request.user
             try:
                 profile = request.user.profile
-                kwargs['queryset'] = Signature.objects.filter(user=profile)
+                # Ambil default queryset sesuai user login
+                queryset = Signature.objects.filter(user=profile)
+
+                # Jika sedang mengedit baris yang sudah ada
+                obj = kwargs.get('obj')  # Ini None di create, bukan edit
+
+                if obj and obj.signature:
+                    # Tambahkan signature yang sudah ada ke queryset agar tetap terlihat
+                    queryset = Signature.objects.filter(
+                        models.Q(user=profile) | models.Q(pk=obj.signature.pk)
+                    )
+
+                kwargs['queryset'] = queryset
             except Exception:
-                # kalau user belum punya profile, kosongkan pilihan
                 kwargs['queryset'] = Signature.objects.none()
+
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 class PaymentRequestVersionInline(nested_admin.NestedTabularInline):

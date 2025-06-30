@@ -108,6 +108,7 @@ class AttendanceInline(admin.TabularInline):
     model           = Attendance
     extra           = 1
     fields          = ('date', 'check_in', 'check_out', 'check_in_location', 'check_out_location', 'status', 'photo_check_in', 'photo_check_out')
+    readonly_fields = ('date', 'check_in', 'check_out', 'status')
 
     formfield_overrides = {
         gis_models.PointField: {'widget': mapwidgets.GoogleMapPointFieldWidget}
