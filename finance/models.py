@@ -63,6 +63,11 @@ def upload_payment_request(instance, filename):
     new_name = f"PYR_{timestamp_now}{ext}"
     return os.path.join('payment_request_project', new_name)
 
+def upload_payment_proof(instance, filename):
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    filename = f'PRP_{timestamp_now}.jpeg'
+    return os.path.join('payment_proof_photo', filename)
+
 class BillOfQuantity(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_boqs')
@@ -233,6 +238,7 @@ class PaymentRequest(AuditModel):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_payment_requests')
     payment_name = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=DocumentStatus.choices, default=DocumentStatus.DRAFT)
+    payment_proof = models.ImageField(upload_to=upload_payment_proof, null=True, blank=True)
     approval_required = models.BooleanField(default=True)
     approval_level = models.CharField(max_length=20, choices=ApprovalLevel.choices, null=True, blank=True)
     issue_date = models.DateField(verbose_name="Upload Date", default=timezone.now)
