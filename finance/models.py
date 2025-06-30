@@ -231,7 +231,10 @@ class SignatureOnBillOfQuantity(AuditModel):
     boq = models.ForeignKey(BillOfQuantity, on_delete=models.CASCADE, related_name='boq_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on BOQ {self.boq.project.project_name}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on BOQ {self.boq.project.project_name} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on BOQ {self.boq.project.project_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
 
 class PaymentRequest(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -317,7 +320,11 @@ class SignatureOnPaymentRequest(AuditModel):
     document = models.ForeignKey(PaymentRequest, on_delete=models.CASCADE, related_name='payment_request_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on Payment Request {self.document.project.project_name}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on Payment Request {self.document.project.project_name} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on Payment Request {self.document.project.project_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
+
 
 class ExpenseOnProject(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

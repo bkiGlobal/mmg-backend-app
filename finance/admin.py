@@ -10,7 +10,7 @@ import io
 import pandas as pd
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from .forms import MultiSheetImportForm
+from .forms import *
 
 # class ScheduleInline(nested_admin.NestedTabularInline):
 #     model   = Schedule
@@ -63,6 +63,35 @@ class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
     extra   = 0
     fields  = ('signature', 'photo_proof')
 
+    def get_formset(self, request, obj=None, **kwargs):
+        FormSet = super().get_formset(request, obj, **kwargs)
+        
+        class FormSetWithControl(FormSet):
+            def __init__(self, *args, **inner_kwargs):
+                super().__init__(*args, **inner_kwargs)
+                
+                # ambil profile sekarang (atau None)
+                try:
+                    current_profile = request.user.profile
+                except Exception:
+                    current_profile = None
+                
+                for form in self.forms:
+                    inst = form.instance
+                    # hanya untuk baris yang sudah tersimpan
+                    if inst and inst.pk:
+                        # jika signature bukan milik user
+                        if not current_profile or inst.signature.user_id != current_profile.id:
+                            # 1) disable kedua field
+                            form.fields['signature'].disabled   = True
+                            form.fields['photo_proof'].disabled = True
+                            # 2) batasi queryset signature ke yang sudah disimpan saja
+                            form.fields['signature'].queryset = Signature.objects.filter(
+                                pk=inst.signature_id
+                            )
+        
+        return FormSetWithControl
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # ketika field yang sedang dirender adalah 'signature'
         if db_field.name == 'signature':
@@ -105,26 +134,47 @@ class SignatureOnPaymentRequestInline(nested_admin.NestedTabularInline):
     extra   = 0
     fields  = ('signature', 'photo_proof')
 
+    def get_formset(self, request, obj=None, **kwargs):
+        FormSet = super().get_formset(request, obj, **kwargs)
+        
+        class FormSetWithControl(FormSet):
+            def __init__(self, *args, **inner_kwargs):
+                super().__init__(*args, **inner_kwargs)
+                
+                # ambil profile sekarang (atau None)
+                try:
+                    current_profile = request.user.profile
+                except Exception:
+                    current_profile = None
+                
+                for form in self.forms:
+                    inst = form.instance
+                    # hanya untuk baris yang sudah tersimpan
+                    if inst and inst.pk:
+                        # jika signature bukan milik user
+                        if not current_profile or inst.signature.user_id != current_profile.id:
+                            # 1) disable kedua field
+                            form.fields['signature'].disabled   = True
+                            form.fields['photo_proof'].disabled = True
+                            # 2) batasi queryset signature ke yang sudah disimpan saja
+                            form.fields['signature'].queryset = Signature.objects.filter(
+                                pk=inst.signature_id
+                            )
+        
+        return FormSetWithControl
+    
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # ketika field yang sedang dirender adalah 'signature'
         if db_field.name == 'signature':
+            # filter queryset agar hanya signature milik user yang login
+            # asumsinya: Signature.user adalah FK ke Profile, 
+            # dan Profile punya relasi satu-ke-satu dengan request.user
             try:
                 profile = request.user.profile
-                # Ambil default queryset sesuai user login
-                queryset = Signature.objects.filter(user=profile)
-
-                # Jika sedang mengedit baris yang sudah ada
-                obj = kwargs.get('obj')  # Ini None di create, bukan edit
-
-                if obj and obj.signature:
-                    # Tambahkan signature yang sudah ada ke queryset agar tetap terlihat
-                    queryset = Signature.objects.filter(
-                        models.Q(user=profile) | models.Q(pk=obj.signature.pk)
-                    )
-
-                kwargs['queryset'] = queryset
+                kwargs['queryset'] = Signature.objects.filter(user=profile)
             except Exception:
+                # kalau user belum punya profile, kosongkan pilihan
                 kwargs['queryset'] = Signature.objects.none()
-
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 class PaymentRequestVersionInline(nested_admin.NestedTabularInline):

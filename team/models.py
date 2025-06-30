@@ -253,4 +253,7 @@ class SignatureOnLeaveRequest(AuditModel):
     leave_request = models.ForeignKey(LeaveRequest, on_delete=models.CASCADE, related_name='leave_request_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on BOQ {self.leave_request.user.full_name}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on BOQ {self.leave_request.user.full_name} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on BOQ {self.leave_request.user.full_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'

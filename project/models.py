@@ -205,7 +205,10 @@ class SignatureOnDocument(AuditModel):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='document_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on {self.document.document_name}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on {self.document.document_name} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on {self.document.document_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
     
 class Drawing(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -286,7 +289,10 @@ class SignatureOnDrawing(AuditModel):
     document = models.ForeignKey(Drawing, on_delete=models.CASCADE, related_name='drawing_signatures')
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on {self.document.document_name}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on {self.document.document_name} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on {self.document.document_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
     
 class Defect(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -321,7 +327,10 @@ class SignatureOnDeflect(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on {self.deflect.work_title}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on {self.deflect.work_title} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on {self.deflect.work_title} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
     
 class ErrorLog(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -357,7 +366,10 @@ class SignatureOnErrorLog(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on Error {self.error.work_type}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on Error {self.error.work_type} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on Error {self.error.work_type} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
 
 class Schedule(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -385,7 +397,10 @@ class SignatureOnSchedule(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on Schedule {self.schedule.boq_item.document_name}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on Schedule {self.schedule.boq_item.document_name} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on Schedule {self.schedule.boq_item.document_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
     
 class ProgressReport(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -421,4 +436,7 @@ class SignatureOnWorkMethod(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        return f'Signature {self.signature.user.full_name} on Work Method {self.work_method.document_number}'
+        if self.updated_at:
+            return f'Signature {self.signature.user.full_name} on Work Method {self.work_method.document_number} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        else:
+            return f'Signature {self.signature.user.full_name} on Work Method {self.work_method.document_number} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
