@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 import nested_admin
 from rangefilter.filters import DateRangeFilter, NumericRangeFilter
 from .models import *
+from team.models import Profile
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .resources import *
@@ -65,31 +66,28 @@ class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
 
     def get_formset(self, request, obj=None, **kwargs):
         FormSet = super().get_formset(request, obj, **kwargs)
-        
         class FormSetWithControl(FormSet):
             def __init__(self, *args, **inner_kwargs):
                 super().__init__(*args, **inner_kwargs)
-                
-                # ambil profile sekarang (atau None)
+
                 try:
                     current_profile = request.user.profile
-                except Exception:
+                except Profile.DoesNotExist:
                     current_profile = None
-                
+
                 for form in self.forms:
                     inst = form.instance
-                    # hanya untuk baris yang sudah tersimpan
-                    if inst and inst.pk:
-                        # jika signature bukan milik user
+                    # Pastikan ini baris existing dan sudah punya FK signature
+                    if inst.pk and inst.signature_id:
+                        # kalau signature bukan punya user sekarang
                         if not current_profile or inst.signature.user_id != current_profile.id:
-                            # 1) disable kedua field
+                            # disable kedua field
                             form.fields['signature'].disabled   = True
                             form.fields['photo_proof'].disabled = True
-                            # 2) batasi queryset signature ke yang sudah disimpan saja
+                            # supaya pilihan dropdown valid, batasi hanya ke pk ini
                             form.fields['signature'].queryset = Signature.objects.filter(
                                 pk=inst.signature_id
                             )
-        
         return FormSetWithControl
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -136,31 +134,28 @@ class SignatureOnPaymentRequestInline(nested_admin.NestedTabularInline):
 
     def get_formset(self, request, obj=None, **kwargs):
         FormSet = super().get_formset(request, obj, **kwargs)
-        
         class FormSetWithControl(FormSet):
             def __init__(self, *args, **inner_kwargs):
                 super().__init__(*args, **inner_kwargs)
-                
-                # ambil profile sekarang (atau None)
+
                 try:
                     current_profile = request.user.profile
-                except Exception:
+                except Profile.DoesNotExist:
                     current_profile = None
-                
+
                 for form in self.forms:
                     inst = form.instance
-                    # hanya untuk baris yang sudah tersimpan
-                    if inst and inst.pk:
-                        # jika signature bukan milik user
+                    # Pastikan ini baris existing dan sudah punya FK signature
+                    if inst.pk and inst.signature_id:
+                        # kalau signature bukan punya user sekarang
                         if not current_profile or inst.signature.user_id != current_profile.id:
-                            # 1) disable kedua field
+                            # disable kedua field
                             form.fields['signature'].disabled   = True
                             form.fields['photo_proof'].disabled = True
-                            # 2) batasi queryset signature ke yang sudah disimpan saja
+                            # supaya pilihan dropdown valid, batasi hanya ke pk ini
                             form.fields['signature'].queryset = Signature.objects.filter(
                                 pk=inst.signature_id
                             )
-        
         return FormSetWithControl
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):

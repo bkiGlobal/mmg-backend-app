@@ -135,7 +135,7 @@ class Signature(AuditModel):
     expire_at = models.DateTimeField(auto_now_add=timezone.now() + timezone.timedelta(days=30))
 
     def __str__(self) -> str:
-        return f'Signature {self.user.full_name}'
+        return f'Signature {self.user.full_name} expire at {self.expire_at.strftime("%a, %d %b %Y %H:%M:%S")}'
 
 class Initial(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
