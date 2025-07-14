@@ -482,7 +482,7 @@ class ScheduleAdmin(admin.ModelAdmin):
 
 @admin.register(ProgressReport)
 class ProgressReportAdmin(admin.ModelAdmin):
-    list_display  = ('boq_item', 'display_photo', 'progress_number', 'type', 'report_date', 'progress_percentage')
+    list_display  = ('boq_item', 'display_photo', 'progress_number', 'type', 'report_date', 'progress_with_percent')
     list_filter   = ('progress_number', 'type', ('report_date', DateRangeFilter), ('progress_percentage', NumericRangeFilter))
     search_fields = ('boq_item__description', 'notes')
     fields        = ('boq_item', 'type', 'progress_number', 'report_date', 'progress_percentage', 'attachment', 'notes')
@@ -493,6 +493,10 @@ class ProgressReportAdmin(admin.ModelAdmin):
         else:
             return mark_safe('<span>No Image</span>')
     display_photo.short_description = 'Photo'
+
+    def progress_with_percent(self, obj):
+        return f"{obj.progress_percentage} %"
+    progress_with_percent.short_description = 'Progress'
 
     # def formfield_for_foreignkey(self, db_field, request, **kwargs):
     #     if db_field.name == 'boq_item':
