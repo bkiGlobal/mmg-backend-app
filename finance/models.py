@@ -82,7 +82,7 @@ class BillOfQuantity(AuditModel):
         return f'{self.project.project_name} {self.document_name}'
     
     def save(self, *args, **kwargs):
-        if self.status == DocumentStatus.APPROVED:
+        if self.status == DocumentStatus.APPROVED and self.pk:
             document_type,_ = DocumentType.objects.get_or_create(
                 name="Bill of Quantity",
             )
@@ -119,6 +119,24 @@ class BillOfQuantity(AuditModel):
                     notes=version.notes
                 )
         return super().save(*args, **kwargs)
+    
+    def delete(self, using=None, keep_parents=False):
+        list_versions = self.boq_versions.all()
+        list_signatures = self.boq_signatures.all()
+        user = get_current_authenticated_user()
+        for version in list_versions:
+            version.is_deleted  = True
+            version.deleted_at  = timezone.now()
+            if user:
+                version.deleted_by = user
+            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
     
     @property
     def project_name(self):
@@ -289,6 +307,24 @@ class PaymentRequest(AuditModel):
                 )
         return super().save(*args, **kwargs)
     
+    def delete(self, using=None, keep_parents=False):
+        list_versions = self.payment_versions.all()
+        list_signatures = self.payment_request_signatures.all()
+        user = get_current_authenticated_user()
+        for version in list_versions:
+            version.is_deleted  = True
+            version.deleted_at  = timezone.now()
+            if user:
+                version.deleted_by = user
+            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
+
     @property
     def project_name(self):
         return self.project.project_name
@@ -325,7 +361,6 @@ class SignatureOnPaymentRequest(AuditModel):
         else:
             return f'Signature {self.signature.user.full_name} on Payment Request {self.document.project.project_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
 
-
 class ExpenseOnProject(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_expense')
@@ -354,6 +389,24 @@ class ExpenseOnProject(AuditModel):
         ).aggregate(sum_total=Sum('total'))
         self.total = (agg['sum_total'] or Decimal('0.0')) + (agg2['sum_total'] or Decimal('0.0'))
         self.save(update_fields=['total'])
+    
+    def delete(self, using=None, keep_parents=False):
+        list_details = self.expense_detail.all()
+        list_materials = self.expense_material.all()
+        user = get_current_authenticated_user()
+        for detail in list_details:
+            detail.is_deleted  = True
+            detail.deleted_at  = timezone.now()
+            if user:
+                detail.deleted_by = user
+            detail.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for material in list_materials:
+            material.is_deleted  = True
+            material.deleted_at  = timezone.now()
+            if user:
+                material.deleted_by = user
+            material.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class ExpenseDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -511,7 +564,12 @@ class FinanceData(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_finance_proof, null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'Finance Data for {self.project.project_name}'
+        if self.project:
+            return f'Finance Data for {self.project.project_name}'
+        elif self.other:
+            return f'Finance Data for {self.other}'
+        else:
+            return f'Finance Data on {self.date}'
     
 class PettyCash(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -527,4 +585,9 @@ class PettyCash(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_finance_proof)
 
     def __str__(self) -> str:
-        return f'Petty Cash for {self.project.project_name}'
+        if self.project:
+            return f'Petty Cash for {self.project.project_name}'
+        elif self.other:
+            return f'Petty Cash for {self.other}'
+        else:
+            return f'Petty Cash on {self.date}'

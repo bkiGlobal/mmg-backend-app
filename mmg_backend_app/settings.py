@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+from datetime import timedelta
 import os
 from pathlib import Path
 from decouple import config, Csv
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
     'inventory',
     'project',
     'team',
+    'rest_framework_simplejwt',
 ]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
@@ -79,6 +81,26 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.locale.LocaleMiddleware",
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated'
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    "TOKEN_OBTAIN_SERIALIZER": "core.serializers.MyTokenObtainPairSerializer",
+  # ...
+}
 
 CORS_ALLOW_ALL_ORIGINS = True
 

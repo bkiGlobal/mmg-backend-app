@@ -93,8 +93,20 @@ class Material(AuditModel):
     name = models.CharField(max_length=128)
     standart_price = MoneyField(max_digits=16, decimal_places=2, default=0, default_currency='IDR')
     descriptions = models.TextField()
+
     def __str__(self) -> str:
         return self.name
+    
+    def delete(self, using=None, keep_parents=False):
+        list_material = self.material_project.all()
+        user = get_current_authenticated_user()
+        for material in list_material:
+            material.is_deleted  = True
+            material.deleted_at  = timezone.now()
+            if user:
+                material.deleted_by = user
+            material.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
     
 class MaterialOnProject(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -105,7 +117,7 @@ class MaterialOnProject(AuditModel):
     quantity_used = models.FloatField()
     notes = models.TextField()
     approved_by = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, blank=True)
-    approved_date = models.DateTimeField()
+    approved_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return f'{self.project.project_name} {self.material.name}'
@@ -122,6 +134,17 @@ class Tool(AuditModel):
 
     def __str__(self) -> str:
         return self.name
+    
+    def delete(self, using=None, keep_parents=False):
+        list_tool = self.tools_project.all()
+        user = get_current_authenticated_user()
+        for tool in list_tool:
+            tool.is_deleted  = True
+            tool.deleted_at  = timezone.now()
+            if user:
+                tool.deleted_by = user
+            tool.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class ToolOnProject(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -129,7 +152,7 @@ class ToolOnProject(AuditModel):
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name='tools_project')
     amount = models.IntegerField()
     assigned_date = models.DateField()
-    returned_date = models.DateField()
+    returned_date = models.DateField(null=True, blank=True)
 
     def __str__(self) -> str:
         return f'{self.tool.name} on {self.project.project_name}'

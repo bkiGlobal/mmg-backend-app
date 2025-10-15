@@ -7,6 +7,7 @@ from django_encrypted_filefield.fields import EncryptedImageField
 from django.contrib.gis.db import models as gis_models
 from django.conf import settings
 from datetime import time
+from django_currentuser.middleware import get_current_authenticated_user
 
 class RoleType(models.TextChoices):
     ADMIN = "admin", "Admin"
@@ -91,7 +92,7 @@ def upload_id_worker(instance, filename):
     filename = f'WKR_{timestamp_now}.jpeg'
     return os.path.join('id_worker', filename)
 
-class Profile(models.Model):
+class Profile(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
@@ -104,10 +105,42 @@ class Profile(models.Model):
     phone_number = models.CharField(max_length=20)
     profile_picture = models.ImageField(upload_to=upload_profile_picture, default='default_photo/default_profile.png')
     is_active = models.BooleanField(default=True)
-    update_at = models.DateTimeField(auto_now_add=True)
+    # update_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
         return self.full_name
+    
+    def delete(self, using=None, keep_parents=False):
+        list_team_members = self.team_members.all()
+        list_user_notifications = self.user_notifications.all()
+        list_user_attendance = self.user_attendance.all()
+        list_user_leave_request = self.user_leave_request.all()
+        user = get_current_authenticated_user()
+        for team in list_team_members:
+            team.is_deleted  = True
+            team.deleted_at  = timezone.now()
+            if user:
+                team.deleted_by = user
+            team.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for notification in list_user_notifications:
+            notification.is_deleted  = True
+            notification.deleted_at  = timezone.now()
+            if user:
+                notification.deleted_by = user
+            notification.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for attendance in list_user_attendance:
+            attendance.is_deleted  = True
+            attendance.deleted_at  = timezone.now()
+            if user:
+                attendance.deleted_by = user
+            attendance.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for leave_req in list_user_leave_request:
+            leave_req.is_deleted  = True
+            leave_req.deleted_at  = timezone.now()
+            if user:
+                leave_req.deleted_by = user
+            leave_req.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 # Create your models here.
 class Team(AuditModel):
@@ -117,6 +150,17 @@ class Team(AuditModel):
 
     def __str__(self) -> str:
         return self.name
+    
+    def delete(self, using=None, keep_parents=False):
+        list_members = self.members.all()
+        user = get_current_authenticated_user()
+        for member in list_members:
+            member.is_deleted  = True
+            member.deleted_at  = timezone.now()
+            if user:
+                member.deleted_by = user
+            member.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class TeamMember(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -165,6 +209,29 @@ class SubContractor(AuditModel):
 
     def __str__(self) -> str:
         return self.name
+    
+    def delete(self, using=None, keep_parents=False):
+        list_workers = self.workers.all()
+        list_subcontractors_on_project = self.subcontractors_on_project.all()
+        user = get_current_authenticated_user()
+        self.locations.is_deleted  = True
+        self.locations.deleted_at  = timezone.now()
+        if user:
+            self.locations.deleted_by = user
+        self.locations.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for worker in list_workers:
+            worker.is_deleted  = True
+            worker.deleted_at  = timezone.now()
+            if user:
+                worker.deleted_by = user
+            worker.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for subcon_on_proj in list_subcontractors_on_project:
+            subcon_on_proj.is_deleted  = True
+            subcon_on_proj.deleted_at  = timezone.now()
+            if user:
+                subcon_on_proj.deleted_by = user
+            subcon_on_proj.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class SubContractorWorker(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -192,11 +259,14 @@ class Attendance(AuditModel):
     date = models.DateField(auto_now_add=True)
     check_in = models.DateTimeField(null=True, blank=True)
     check_out = models.DateTimeField(null=True, blank=True)
-    check_in_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
-    check_out_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
+    check_in_location = gis_models.PointField(null=True, blank=True)
+    check_out_location = gis_models.PointField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=AttendanceStatus.choices)
     photo_check_in = models.ImageField(upload_to=upload_check_in)
     photo_check_out = models.ImageField(upload_to=upload_check_out, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self) -> str:
         return f'Attendance {self.user.full_name} on {self.date}'
@@ -216,8 +286,8 @@ class Attendance(AuditModel):
             self.check_out = timezone.now()
 
         # Batas waktu
-        batas_check_in = time(10, 0, 0)  # 10:00 pagi
-        batas_check_out = time(18, 0, 0)  # 18:00 / 6 sore
+        batas_check_in = time(9, 0, 0)  # 9:00 pagi
+        batas_check_out = time(17, 0, 0)  # 17:00 / 5 sore
 
         jam_check_in = self.check_in.time()
         jam_check_out = self.check_out.time() if self.check_out else None
@@ -235,7 +305,7 @@ class Attendance(AuditModel):
     
 class LeaveRequest (AuditModel):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_leave_request')
-    status = models.CharField(max_length=20, choices=LeaveStatus.choices)
+    status = models.CharField(max_length=20, choices=LeaveStatus.choices, default=LeaveStatus.PENDING)
     start_date = models.DateField()
     end_date = models.DateField()
     reason = models.TextField()
@@ -245,6 +315,17 @@ class LeaveRequest (AuditModel):
 
     def __str__(self) -> str:
         return f'Leave Request {self.user.full_name} from {self.start_date} to {self.end_date}'
+    
+    def delete(self, using=None, keep_parents=False):
+        list_leave_request_signatures = self.leave_request_signatures.all()
+        user = get_current_authenticated_user()
+        for leave_req in list_leave_request_signatures:
+            leave_req.is_deleted  = True
+            leave_req.deleted_at  = timezone.now()
+            if user:
+                leave_req.deleted_by = user
+            leave_req.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
     
 class SignatureOnLeaveRequest(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

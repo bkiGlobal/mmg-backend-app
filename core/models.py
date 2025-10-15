@@ -27,9 +27,10 @@ class AuditModel(models.Model):
 
     def save(self, *args, **kwargs):
         user = get_current_authenticated_user()
-        if not self.pk:
+        if self.created_by:
+            self.updated_by = user
+        else:
             self.created_by = user
-        self.updated_by = user
         super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):

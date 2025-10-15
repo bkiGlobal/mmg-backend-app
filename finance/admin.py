@@ -62,7 +62,17 @@ from .forms import *
 class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
     model   = SignatureOnBillOfQuantity
     extra   = 0
-    fields  = ('signature', 'photo_proof')
+    classes = ['collapse']
+    fields  = ('signature', ('photo_proof', 'display_photo'))
+    readonly_fields = ('display_photo',)
+
+    # Poin 1: Metode untuk menampilkan foto Check-in
+    def display_photo(self, obj):
+        if obj.photo_proof:
+            # Menggunakan mark_safe untuk merender tag HTML
+            return mark_safe(f'<a href="{obj.photo_proof.url}" target="_blank"><img src="{obj.photo_proof.url}" style="max-height: 150px; width: auto; border: 1px solid #ccc;" /></a>')
+        return "Belum ada photo proof"
+    display_photo.short_description = 'Photo Proof Saat Ini'
 
     def get_formset(self, request, obj=None, **kwargs):
         FormSet = super().get_formset(request, obj, **kwargs)
@@ -107,15 +117,29 @@ class SignatureOnBillOfQuantityInline(nested_admin.NestedTabularInline):
 class BillOfQuantityVersionInline(nested_admin.NestedTabularInline):
     model           = BillOfQuantityVersion
     extra           = 0
+    classes         = ['collapse']
     fields          = ('title', 'document_number', 'boq_file', 'status', 'total', 'notes')
 
 @admin.register(BillOfQuantity)
 class BillOfQuantityAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
-    list_display    = ('project', 'document_name', 'status', 'issue_date', 'due_date')
-    list_filter     = ('project', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level')
+    list_display    = ('project', 'document_name', 'status', 'issue_date', 'due_date', 'is_deleted')
+    list_filter     = ('project', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level', 'is_deleted')
     search_fields   = ('project__project_name', 'document_name')
-    fields          = ('project', 'document_name', 'status', 'approval_required', 'approval_level', 'issue_date', 'due_date', 'updated_by', 'updated_at', 'created_by', 'created_at')
-    readonly_fields = ('updated_by', 'updated_at', 'created_by', 'created_at')
+    actions         = ['restore_selected',]
+    fieldsets = (
+        (None, {
+            "fields": (
+                'project', 'document_name', 'status', 'approval_required', 'approval_level', 'issue_date', 'due_date'
+            ),
+        }),
+        ('METADATA', {
+            'classes': ('collapse',),
+            "fields": (
+                'updated_by', 'updated_at', 'created_by', 'created_at', 'is_deleted', 'deleted_at', 'deleted_by'
+            ),
+        }),
+    )
+    readonly_fields = ('updated_by', 'updated_at', 'created_by', 'created_at', 'is_deleted', 'deleted_at', 'deleted_by')
     inlines         = [BillOfQuantityVersionInline, ]  # hanya masukkan default di sini
 
     def get_inline_instances(self, request, obj=None):
@@ -126,11 +150,55 @@ class BillOfQuantityAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
             inline_instances.append(SignatureOnBillOfQuantityInline(self.model, self.admin_site))
 
         return inline_instances
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Jika ada param filter is_deleted__exact di URL (True atau False),
+        # kembalikan semua dulu, nanti list_filter yang akan nge-filter.
+        if 'is_deleted__exact' in request.GET:
+            return qs
+        # Tanpa param, otomatis filter hanya yang is_deleted=False
+        return qs.filter(is_deleted=False)
+    
+    @admin.action(description="Restore selected bill of quantitys")
+    def restore_selected(self, request, queryset):
+        restored_count = 0
+        for obj in queryset:
+            if obj.is_deleted:
+                obj.is_deleted  = False
+                obj.deleted_at  = None
+                obj.deleted_by  = None
+                obj.save()
+                restored_count += 1
+            for version in obj.boq_versions.all():
+                if version.is_deleted:
+                    version.is_deleted = False
+                    version.deleted_at = None
+                    version.deleted_by = None
+                    version.save()
+            for signature in obj.boq_signatures.all():
+                if signature.is_deleted:
+                    signature.is_deleted = False
+                    signature.deleted_at = None
+                    signature.deleted_by = None
+                    signature.save()
+        self.message_user(request,
+            f"{restored_count} item berhasil di-restore.")
 
 class SignatureOnPaymentRequestInline(nested_admin.NestedTabularInline):
     model   = SignatureOnPaymentRequest
     extra   = 0
-    fields  = ('signature', 'photo_proof')
+    classes = ['collapse',]
+    fields  = ('signature', ('photo_proof', 'display_photo'))
+    readonly_fields = ('display_photo',)
+
+    # Poin 1: Metode untuk menampilkan foto Check-in
+    def display_photo(self, obj):
+        if obj.photo_proof:
+            # Menggunakan mark_safe untuk merender tag HTML
+            return mark_safe(f'<a href="{obj.photo_proof.url}" target="_blank"><img src="{obj.photo_proof.url}" style="max-height: 150px; width: auto; border: 1px solid #ccc;" /></a>')
+        return "Belum ada photo proof"
+    display_photo.short_description = 'Photo Proof Saat Ini'
 
     def get_formset(self, request, obj=None, **kwargs):
         FormSet = super().get_formset(request, obj, **kwargs)
@@ -175,15 +243,29 @@ class SignatureOnPaymentRequestInline(nested_admin.NestedTabularInline):
 class PaymentRequestVersionInline(nested_admin.NestedTabularInline):
     model           = PaymentRequestVersion
     extra           = 0
+    classes         = ['collapse',]
     fields          = ('title', 'payment_number', 'payment_file', 'status', 'total', 'notes')
 
 @admin.register(PaymentRequest)
 class PaymentRequestAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
-    list_display    = ('project', 'payment_name', 'status', 'issue_date', 'due_date')
-    list_filter     = ('project', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level')
+    list_display    = ('project', 'payment_name', 'status', 'issue_date', 'due_date', 'is_deleted')
+    list_filter     = ('project', 'status', ('issue_date', DateRangeFilter), ('due_date', DateRangeFilter), 'approval_required', 'approval_level', 'is_deleted')
     search_fields   = ('project__project_name', 'payment_name')
-    fields          = ('project', 'payment_name', 'status', 'payment_proof', 'approval_required', 'approval_level', 'issue_date', 'due_date', 'updated_by', 'updated_at', 'created_by', 'created_at')
-    readonly_fields = ('updated_by', 'updated_at', 'created_by', 'created_at')
+    actions         = ['restore_selected',]
+    fieldsets = (
+        (None, {
+            "fields": (
+                'project', 'payment_name', 'status', 'payment_proof', 'approval_required', 'approval_level', 'issue_date', 'due_date'
+            ),
+        }),
+        ('METADATA', {
+            'classes': ('collapse',),
+            "fields": (
+                'updated_by', 'updated_at', 'created_by', 'created_at', 'is_deleted', 'deleted_at', 'deleted_by'
+            ),
+        }),
+    )
+    readonly_fields = ('updated_by', 'updated_at', 'created_by', 'created_at', 'is_deleted', 'deleted_at', 'deleted_by')
     inlines         = [PaymentRequestVersionInline, ]  # hanya masukkan default di sini
 
     def get_inline_instances(self, request, obj=None):
@@ -194,6 +276,40 @@ class PaymentRequestAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
             inline_instances.append(SignatureOnPaymentRequestInline(self.model, self.admin_site))
 
         return inline_instances
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Jika ada param filter is_deleted__exact di URL (True atau False),
+        # kembalikan semua dulu, nanti list_filter yang akan nge-filter.
+        if 'is_deleted__exact' in request.GET:
+            return qs
+        # Tanpa param, otomatis filter hanya yang is_deleted=False
+        return qs.filter(is_deleted=False)
+    
+    @admin.action(description="Restore selected payment requests")
+    def restore_selected(self, request, queryset):
+        restored_count = 0
+        for obj in queryset:
+            if obj.is_deleted:
+                obj.is_deleted  = False
+                obj.deleted_at  = None
+                obj.deleted_by  = None
+                obj.save()
+                restored_count += 1
+            for version in obj.payment_versions.all():
+                if version.is_deleted:
+                    version.is_deleted = False
+                    version.deleted_at = None
+                    version.deleted_by = None
+                    version.save()
+            for signature in obj.payment_request_signatures.all():
+                if signature.is_deleted:
+                    signature.is_deleted = False
+                    signature.deleted_at = None
+                    signature.deleted_by = None
+                    signature.save()
+        self.message_user(request,
+            f"{restored_count} item berhasil di-restore.")
 
 #
 # Inlines for Expense → ExpenseDetail & ExpenseForMaterial
@@ -202,6 +318,7 @@ class PaymentRequestAdmin(ImportExportMixin, nested_admin.NestedModelAdmin):
 class ExpenseDetailInline(nested_admin.NestedTabularInline):
     model   = ExpenseDetail
     extra   = 0
+    classes = ['collapse',]
     fields  = (
         'category',
         'name',
@@ -220,6 +337,7 @@ class ExpenseDetailInline(nested_admin.NestedTabularInline):
 class ExpenseForMaterialInline(nested_admin.NestedTabularInline):
     model   = ExpenseForMaterial
     extra   = 0
+    classes = ['collapse',]
     fields  = (
         'material',
         'category',
@@ -236,14 +354,61 @@ class ExpenseForMaterialInline(nested_admin.NestedTabularInline):
 
 @admin.register(ExpenseOnProject)
 class ExpenseOnProjectAdmin(nested_admin.NestedModelAdmin):
-    list_display    = ('project', 'display_photo', 'date', 'total')
-    list_filter     = ('project', ('date', DateRangeFilter), ('total', NumericRangeFilter))
+    list_display    = ('project', 'display_photo_view', 'date', 'total', 'is_deleted')
+    list_filter     = ('project', ('date', DateRangeFilter), ('total', NumericRangeFilter), 'is_deleted')
     search_fields   = ('project__project_name', 'notes')
-    fields          = ('project', 'photo_proof', 'date', 'total', 'notes')
-    readonly_fields = ('total',)
+    actions         = ['restore_selected',]
+    fieldsets = (
+        (None, {
+            "fields": (
+                'project', ('photo_proof', 'display_photo'), 'date', 'total', 'notes'
+            ),
+        }),
+        ('METADATA', {
+            'classes': ('collapse',),
+            "fields": (
+                'updated_by', 'updated_at', 'created_by', 'created_at', 'is_deleted', 'deleted_at', 'deleted_by'
+            ),
+        }),
+    )
+    readonly_fields = ('display_photo', 'total', 'created_by', 'created_at', 'updated_by', 'updated_at', 'is_deleted', 'deleted_at', 'deleted_by')
     resource_class = ExpenseResource
     inlines         = [ExpenseDetailInline, ExpenseForMaterialInline]
     change_list_template = "admin/expense_change_list.html"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Jika ada param filter is_deleted__exact di URL (True atau False),
+        # kembalikan semua dulu, nanti list_filter yang akan nge-filter.
+        if 'is_deleted__exact' in request.GET:
+            return qs
+        # Tanpa param, otomatis filter hanya yang is_deleted=False
+        return qs.filter(is_deleted=False)
+    
+    @admin.action(description="Restore selected expenses")
+    def restore_selected(self, request, queryset):
+        restored_count = 0
+        for obj in queryset:
+            if obj.is_deleted:
+                obj.is_deleted  = False
+                obj.deleted_at  = None
+                obj.deleted_by  = None
+                obj.save()
+                restored_count += 1
+            for detail in obj.expense_detail.all():
+                if detail.is_deleted:
+                    detail.is_deleted = False
+                    detail.deleted_at = None
+                    detail.deleted_by = None
+                    detail.save()
+            for material in obj.expense_material.all():
+                if material.is_deleted:
+                    material.is_deleted = False
+                    material.deleted_at = None
+                    material.deleted_by = None
+                    material.save()
+        self.message_user(request,
+            f"{restored_count} item berhasil di-restore.")
 
     def get_urls(self):
         from django.urls import path
@@ -371,7 +536,15 @@ class ExpenseOnProjectAdmin(nested_admin.NestedModelAdmin):
         )
         return render(request, "admin/import_all_expense.html", context)
 
+    # Poin 1: Metode untuk menampilkan foto Check-in
     def display_photo(self, obj):
+        if obj.photo_proof:
+            # Menggunakan mark_safe untuk merender tag HTML
+            return mark_safe(f'<a href="{obj.photo_proof.url}" target="_blank"><img src="{obj.photo_proof.url}" style="max-height: 150px; width: auto; border: 1px solid #ccc;" /></a>')
+        return "Belum ada photo proof"
+    display_photo.short_description = 'Photo Proof Saat Ini'
+
+    def display_photo_view(self, obj):
         if obj.photo_proof:
             return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo_proof.url))
         else:
@@ -521,17 +694,115 @@ class ExpenseOnProjectAdmin(nested_admin.NestedModelAdmin):
 @admin.register(FinanceData)
 class FinanceAdmin(ImportExportModelAdmin, nested_admin.NestedModelAdmin):
     resource_class = FinanceDataResource
-    list_display = ('project', 'other', 'date', 'description', 'debet', 'credit', 'balance')
-    list_filter  = ('project', ('date', DateRangeFilter), ('debet', NumericRangeFilter), ('credit', NumericRangeFilter), ('balance', NumericRangeFilter))
-    search_fields = ('other', 'description')
-    fields       = ('project', 'other', 'date', 'description', 'debet', 'credit', 'balance', 'photo_proof', 'created_by', 'created_at', 'updated_by', 'updated_at')
-    readonly_fields = ('created_by', 'created_at', 'updated_by', 'updated_at')
+    list_display    = ('project', 'display_photo_view', 'other', 'date', 'description', 'debet', 'credit', 'balance', 'is_deleted')
+    list_filter     = ('project', ('date', DateRangeFilter), ('debet', NumericRangeFilter), ('credit', NumericRangeFilter), ('balance', NumericRangeFilter), 'is_deleted')
+    search_fields   = ('other', 'description')
+    actions         = ['restore_selected',]
+    fieldsets = (
+        (None, {
+            "fields": (
+                'project', 'other', 'date', 'description', 'debet', 'credit', 'balance', ('photo_proof', 'display_photo')
+            ),
+        }),
+        ('METADATA', {
+            'classes': ('collapse',),
+            "fields": (
+                'updated_by', 'updated_at', 'created_by', 'created_at', 'is_deleted', 'deleted_at', 'deleted_by'
+            ),
+        }),
+    )
+    readonly_fields = ('display_photo', 'created_by', 'created_at', 'updated_by', 'updated_at', 'is_deleted', 'deleted_at', 'deleted_by')
+
+    def display_photo(self, obj):
+        if obj.photo_proof:
+            # Menggunakan mark_safe untuk merender tag HTML
+            return mark_safe(f'<a href="{obj.photo_proof.url}" target="_blank"><img src="{obj.photo_proof.url}" style="max-height: 150px; width: auto; border: 1px solid #ccc;" /></a>')
+        return "Belum ada Photo Proof"
+    display_photo.short_description = 'Photo Proof Saat Ini'
+
+    def display_photo_view(self, obj):
+        if obj.photo_proof:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo_proof.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Jika ada param filter is_deleted__exact di URL (True atau False),
+        # kembalikan semua dulu, nanti list_filter yang akan nge-filter.
+        if 'is_deleted__exact' in request.GET:
+            return qs
+        # Tanpa param, otomatis filter hanya yang is_deleted=False
+        return qs.filter(is_deleted=False)
+    
+    @admin.action(description="Restore selected finance data")
+    def restore_selected(self, request, queryset):
+        restored_count = 0
+        for obj in queryset:
+            if obj.is_deleted:
+                obj.is_deleted  = False
+                obj.deleted_at  = None
+                obj.deleted_by  = None
+                obj.save()
+                restored_count += 1
+        self.message_user(request,
+            f"{restored_count} item berhasil di-restore.")
 
 @admin.register(PettyCash)
 class PettyCashAdmin(ImportExportModelAdmin, nested_admin.NestedModelAdmin):
     resource_class = PettyCashResource
-    list_display = ('project', 'other', 'date', 'description', 'type', 'payment_via', 'debet', 'credit', 'balance')
-    list_filter  = ('project', 'type', 'payment_via', ('date', DateRangeFilter), ('debet', NumericRangeFilter), ('credit', NumericRangeFilter), ('balance', NumericRangeFilter))
-    search_fields = ('other', 'description')
-    fields       = ('project', 'other', 'date', 'description', 'type', 'payment_via', 'debet', 'credit', 'balance', 'photo_proof', 'created_by', 'created_at', 'updated_by', 'updated_at')
-    readonly_fields = ('created_by', 'created_at', 'updated_by', 'updated_at')
+    list_display    = ('project', 'display_photo_view', 'other', 'date', 'description', 'type', 'payment_via', 'debet', 'credit', 'balance', 'is_deleted')
+    list_filter     = ('project', 'type', 'payment_via', ('date', DateRangeFilter), ('debet', NumericRangeFilter), ('credit', NumericRangeFilter), ('balance', NumericRangeFilter), 'is_deleted')
+    search_fields   = ('other', 'description')
+    actions         = ['restore_selected',]
+    fieldsets = (
+        (None, {
+            "fields": (
+                'project', 'other', 'date', 'description', 'type', 'payment_via', 'debet', 'credit', 'balance', ('photo_proof', 'display_photo')
+            ),
+        }),
+        ('METADATA', {
+            'classes': ('collapse',),
+            "fields": (
+                'updated_by', 'updated_at', 'created_by', 'created_at', 'is_deleted', 'deleted_at', 'deleted_by'
+            ),
+        }),
+    )
+    readonly_fields = ('display_photo', 'created_by', 'created_at', 'updated_by', 'updated_at', 'is_deleted', 'deleted_at', 'deleted_by')
+
+    def display_photo(self, obj):
+        if obj.photo_proof:
+            # Menggunakan mark_safe untuk merender tag HTML
+            return mark_safe(f'<a href="{obj.photo_proof.url}" target="_blank"><img src="{obj.photo_proof.url}" style="max-height: 150px; width: auto; border: 1px solid #ccc;" /></a>')
+        return "Belum ada Photo Proof"
+    display_photo.short_description = 'Photo Proof Saat Ini'
+
+    def display_photo_view(self, obj):
+        if obj.photo_proof:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.photo_proof.url))
+        else:
+            return mark_safe('<span>No Image</span>')
+    display_photo.short_description = 'Photo'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Jika ada param filter is_deleted__exact di URL (True atau False),
+        # kembalikan semua dulu, nanti list_filter yang akan nge-filter.
+        if 'is_deleted__exact' in request.GET:
+            return qs
+        # Tanpa param, otomatis filter hanya yang is_deleted=False
+        return qs.filter(is_deleted=False)
+    
+    @admin.action(description="Restore selected petty cash")
+    def restore_selected(self, request, queryset):
+        restored_count = 0
+        for obj in queryset:
+            if obj.is_deleted:
+                obj.is_deleted  = False
+                obj.deleted_at  = None
+                obj.deleted_by  = None
+                obj.save()
+                restored_count += 1
+        self.message_user(request,
+            f"{restored_count} item berhasil di-restore.")

@@ -1,10 +1,14 @@
-# from django.db.models.signals import post_delete, post_save
+# from django.db.models.signals import pre_delete, post_save
 # from django.dispatch import receiver
-# from .models import BillOfQuantityItemDetail, BillOfQuantity
+# from .models import *
 
-# @receiver(post_delete, sender=BillOfQuantityItemDetail)
-# def update_total_on_delete(sender, instance, **kwargs):
-#     instance.bill_of_quantity_subitem.bill_of_quantity_item.bill_of_quantity.recalc_total()
+# @receiver(pre_delete, sender=BillOfQuantity)
+# def delete_on_boq(sender, instance, **kwargs):
+#     list_versions = instance.boq_versions.all()
+#     list_signatures = instance.boq_signatures.all()
+#     print(f"Deleting BillOfQuantity: {instance.id}, versions: {list_versions.count()}, signatures: {list_signatures.count()}")
+#     list_versions.delete()
+#     list_signatures.delete()
 
 # @receiver(post_save, sender=BillOfQuantity)
 # def update_work_weight_on_boq_save(sender, instance: BillOfQuantity, created, **kwargs):

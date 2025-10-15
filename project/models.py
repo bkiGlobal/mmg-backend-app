@@ -2,7 +2,6 @@ from django.utils import timezone
 import os
 import uuid
 from django.db import models
-import magic
 from core.models import *
 from team.models import Team, Signature, Initial, upload_signature_proof, Profile
 
@@ -153,6 +152,101 @@ class Project(AuditModel):
 
     def __str__(self) -> str:
         return f'{self.project_code} {self.project_name}'
+    
+    def delete(self, using=None, keep_parents=False):
+        project_documents = self.project_documents.all()
+        project_drawings = self.project_drawings.all()
+        project_defect = self.project_defect.all()
+        error_on_project = self.error_on_project.all()
+        work_method_project = self.work_method_project.all()
+        project_boqs = self.project_boqs.all()
+        project_payment_requests = self.project_payment_requests.all()
+        project_expense = self.project_expense.all()
+        project_finance_data = self.project_finance_data.all()
+        project_petty_cash = self.project_petty_cash.all()
+        project_material = self.project_material.all()
+        project_tools = self.project_tools.all()
+        project_subcon = self.project_subcon.all()
+        user = get_current_authenticated_user()
+        for document in project_documents:
+            document.is_deleted  = True
+            document.deleted_at  = timezone.now()
+            if user:
+                document.deleted_by = user
+            document.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for drawing in project_drawings:
+            drawing.is_deleted  = True
+            drawing.deleted_at  = timezone.now()
+            if user:
+                drawing.deleted_by = user
+            drawing.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for defect in project_defect:
+            defect.is_deleted  = True
+            defect.deleted_at  = timezone.now()
+            if user:
+                defect.deleted_by = user
+            defect.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for error in error_on_project:
+            error.is_deleted  = True
+            error.deleted_at  = timezone.now()
+            if user:
+                error.deleted_by = user
+            error.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for work_method in work_method_project:
+            work_method.is_deleted  = True
+            work_method.deleted_at  = timezone.now()
+            if user:
+                work_method.deleted_by = user
+            work_method.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for boq in project_boqs:
+            boq.is_deleted  = True
+            boq.deleted_at  = timezone.now()
+            if user:
+                boq.deleted_by = user
+            boq.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for payment_request in project_payment_requests:
+            payment_request.is_deleted  = True
+            payment_request.deleted_at  = timezone.now()
+            if user:
+                payment_request.deleted_by = user
+            payment_request.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for expense in project_expense:
+            expense.is_deleted  = True
+            expense.deleted_at  = timezone.now()
+            if user:
+                expense.deleted_by = user
+            expense.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for finance_data in project_finance_data:
+            finance_data.is_deleted  = True
+            finance_data.deleted_at  = timezone.now()
+            if user:
+                finance_data.deleted_by = user
+            finance_data.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for petty_cash in project_petty_cash:
+            petty_cash.is_deleted  = True
+            petty_cash.deleted_at  = timezone.now()
+            if user:
+                petty_cash.deleted_by = user
+            petty_cash.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for material in project_material:
+            material.is_deleted  = True
+            material.deleted_at  = timezone.now()
+            if user:
+                material.deleted_by = user
+            material.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for tool in project_tools:
+            tool.is_deleted  = True
+            tool.deleted_at  = timezone.now()
+            if user:
+                tool.deleted_by = user
+            tool.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for subcon in project_subcon:
+            subcon.is_deleted  = True
+            subcon.deleted_at  = timezone.now()
+            if user:
+                subcon.deleted_by = user
+            subcon.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class Document(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -167,6 +261,24 @@ class Document(AuditModel):
 
     def __str__(self) -> str:
         return f'{self.project.project_name} {self.document_name}'
+    
+    def delete(self, using=None, keep_parents=False):
+        list_versions = self.versions.all()
+        list_signatures = self.document_signatures.all()
+        user = get_current_authenticated_user()
+        for version in list_versions:
+            version.is_deleted  = True
+            version.deleted_at  = timezone.now()
+            if user:
+                version.deleted_by = user
+            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
     
     @property
     def project_name(self):
@@ -257,6 +369,24 @@ class Drawing(AuditModel):
                     notes=version.notes
                 )
         return super().save(*args, **kwargs)
+    
+    def delete(self, using=None, keep_parents=False):
+        list_versions = self.drawing_versions.all()
+        list_signatures = self.drawing_signatures.all()
+        user = get_current_authenticated_user()
+        for version in list_versions:
+            version.is_deleted  = True
+            version.deleted_at  = timezone.now()
+            if user:
+                version.deleted_by = user
+            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
     @property
     def project_name(self):
@@ -296,7 +426,7 @@ class SignatureOnDrawing(AuditModel):
     
 class Defect(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_deflect')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='project_defect')
     work_title = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
     is_approved = models.BooleanField(default=False)
@@ -304,10 +434,28 @@ class Defect(AuditModel):
 
     def __str__(self) -> str:
         return f'Deflect {self.work_title} on {self.project.project_name}'
+    
+    def delete(self, using=None, keep_parents=False):
+        list_versions = self.defect_detail.all()
+        list_signatures = self.defect_signature.all()
+        user = get_current_authenticated_user()
+        for version in list_versions:
+            version.is_deleted  = True
+            version.deleted_at  = timezone.now()
+            if user:
+                version.deleted_by = user
+            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class DefectDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='deflect_detail')
+    deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='defect_detail')
     location_detail = models.CharField(max_length=255)
     deviation = models.CharField(max_length=255)
     photo = models.ImageField(upload_to=upload_defect, null=True, blank=True)
@@ -322,7 +470,7 @@ class DefectDetail(AuditModel):
 
 class SignatureOnDeflect(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='deflect_signature')
+    deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='defect_signature')
     signature = models.ForeignKey(Signature, on_delete=models.SET_NULL, null=True, blank=True)
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
@@ -338,15 +486,33 @@ class ErrorLog(AuditModel):
     work_type = models.ForeignKey(WorkType, on_delete=models.PROTECT)
     document_number = models.CharField(max_length=255)
     periode_start = models.DateTimeField()
-    periode_end = models.DateTimeField()
+    periode_end = models.DateTimeField(null=True, blank=True)
     notes = models.TextField()
 
     def __str__(self) -> str:
         return f'Error Log {self.work_type} on {self.project.project_name}'
     
+    def delete(self, using=None, keep_parents=False):
+        list_versions = self.error_detail.all()
+        list_signatures = self.error_log_signature.all()
+        user = get_current_authenticated_user()
+        for version in list_versions:
+            version.is_deleted  = True
+            version.deleted_at  = timezone.now()
+            if user:
+                version.deleted_by = user
+            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
+    
 class ErrorLogDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    error = models.ForeignKey(ErrorLog, on_delete=models.CASCADE, related_name='error_dateil')
+    error = models.ForeignKey(ErrorLog, on_delete=models.CASCADE, related_name='error_detail')
     date = models.DateField(default=timezone.now)
     descriptions = models.TextField()
     solutions = models.TextField()
@@ -389,6 +555,17 @@ class Schedule(AuditModel):
             return f'Schedule for {self.boq_item.document_name}'
         except Exception:
             return f'Schedule {self.pk}'
+    
+    def delete(self, using=None, keep_parents=False):
+        list_signatures = self.schedule_signature.all()
+        user = get_current_authenticated_user()
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class SignatureOnSchedule(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -420,7 +597,7 @@ class ProgressReport(AuditModel):
 
 class WorkMethod(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='work_method_project')
     work_title = models.CharField(max_length=255)
     document_number = models.CharField(max_length=255)
     file = models.FileField(upload_to=upload_work_method_photo)
@@ -428,6 +605,17 @@ class WorkMethod(AuditModel):
 
     def __str__(self) -> str:
         return f'Work Method for {self.project.project_name}'
+    
+    def delete(self, using=None, keep_parents=False):
+        list_signatures = self.work_method_signature.all()
+        user = get_current_authenticated_user()
+        for signature in list_signatures:
+            signature.is_deleted  = True
+            signature.deleted_at  = timezone.now()
+            if user:
+                signature.deleted_by = user
+            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+        return super().delete(using, keep_parents)
 
 class SignatureOnWorkMethod(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
