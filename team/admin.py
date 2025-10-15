@@ -141,6 +141,7 @@ class AttendanceModelAdmin(admin.ModelAdmin):
             ),
         }),
         ('CHECK IN/DATANG', {
+            'classes': ('collapse',),
             "fields": (
                 ('photo_check_in', 'display_check_in_photo'), 'check_in', 'check_in_location'
             ),
