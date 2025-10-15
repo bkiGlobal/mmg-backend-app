@@ -140,12 +140,13 @@ class AttendanceModelAdmin(admin.ModelAdmin):
                 'user', 'date', 'status', 
             ),
         }),
-        ('CHECK IN', {
+        ('CHECK IN/DATANG', {
             "fields": (
                 ('photo_check_in', 'display_check_in_photo'), 'check_in', 'check_in_location'
             ),
         }),
-        ('CHECK OUT', {
+        ('CHECK OUT/PULANG', {
+            'classes': ('collapse',),
             "fields": (
                 ('photo_check_out', 'display_check_out_photo'), 'check_out', 'check_out_location'
             ),
