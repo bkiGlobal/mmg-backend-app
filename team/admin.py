@@ -6,6 +6,7 @@ from django.utils.safestring import mark_safe
 import mapwidgets
 from django.contrib.auth.models import User
 from .forms import *
+from django.contrib.gis import admin as gis_admin
 
 
 # ──────────────── Team & Members ────────────────
@@ -128,7 +129,7 @@ class InitialInline(admin.TabularInline):
 
 # ──────────────── Attendance ────────────────
 @admin.register(Attendance)
-class AttendanceModelAdmin(admin.ModelAdmin):
+class AttendanceModelAdmin(gis_admin.GISModelAdmin):
     form = AttendanceAdminForm
     list_display    = ('user', 'date', 'check_in', 'check_out', 'status')
     list_filter     = ('user', 'date', 'status', 'is_deleted')
