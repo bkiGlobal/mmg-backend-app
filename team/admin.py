@@ -6,7 +6,6 @@ from django.utils.safestring import mark_safe
 import mapwidgets
 from django.contrib.auth.models import User
 from .forms import *
-from django.contrib.gis import admin as gis_admin
 
 
 # ──────────────── Team & Members ────────────────
@@ -129,7 +128,7 @@ class InitialInline(admin.TabularInline):
 
 # ──────────────── Attendance ────────────────
 @admin.register(Attendance)
-class AttendanceModelAdmin(gis_admin.GISModelAdmin):
+class AttendanceModelAdmin(admin.ModelAdmin):
     form = AttendanceAdminForm
     list_display    = ('user', 'date', 'check_in', 'check_out', 'status')
     list_filter     = ('user', 'date', 'status', 'is_deleted')
@@ -200,7 +199,7 @@ class AttendanceModelAdmin(gis_admin.GISModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         Form = super().get_form(request, obj, **kwargs)
         # Periksa apakah pengguna adalah superuser
-        if request.user.is_superuser:
+        if request.user.is_superuser or obj is None:
             # Jika superuser, gunakan widget interaktif (GoogleMapPointFieldWidget)
             self.formfield_overrides[gis_models.PointField]['widget'] = mapwidgets.GoogleMapPointFieldWidget
         else:
