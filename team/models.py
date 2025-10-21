@@ -16,6 +16,8 @@ class RoleType(models.TextChoices):
     CFO = "cfo", "CFO"
     QS = "qs", "QS"
     IT = "it", "IT"
+    IT = "pm", "PM"
+    IT = "sm", "SM"
     SPV = "spv", "Supervisor"
     ARCHITECT = "architect", "Architect"
     LOGISTIC = "logistic", "Logistic"
