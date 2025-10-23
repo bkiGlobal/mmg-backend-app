@@ -196,23 +196,23 @@ class AttendanceModelAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
     
     # Memasukkan request ke form kustom
-    def get_form(self, request, obj=None, **kwargs):
-        Form = super().get_form(request, obj, **kwargs)
-        # Periksa apakah pengguna adalah superuser
-        if request.user.is_superuser or obj is None:
-            # Jika superuser, gunakan widget interaktif (GoogleMapPointFieldWidget)
-            self.formfield_overrides[gis_models.PointField]['widget'] = mapwidgets.GoogleMapPointFieldWidget
-        else:
-            # Jika bukan superuser, gunakan widget statis (GoogleMapPointFieldStaticWidget)
-            self.formfield_overrides[gis_models.PointField]['widget'] = mapwidgets.GoogleMapPointFieldStaticWidget
-        # Menghapus formfield_for_foreignkey user di sini karena save_model sudah menjamin keamanan
+    # def get_form(self, request, obj=None, **kwargs):
+    #     Form = super().get_form(request, obj, **kwargs)
+    #     # Periksa apakah pengguna adalah superuser
+    #     if request.user.is_superuser or obj is None:
+    #         # Jika superuser, gunakan widget interaktif (GoogleMapPointFieldWidget)
+    #         self.formfield_overrides[gis_models.PointField]['widget'] = mapwidgets.GoogleMapPointFieldWidget
+    #     else:
+    #         # Jika bukan superuser, gunakan widget statis (GoogleMapPointFieldStaticWidget)
+    #         self.formfield_overrides[gis_models.PointField]['widget'] = mapwidgets.GoogleMapPointFieldStaticWidget
+    #     # Menghapus formfield_for_foreignkey user di sini karena save_model sudah menjamin keamanan
         
-        # Kelas sementara untuk menyuntikkan objek request ke Form __init__
-        class AttendanceFormWithRequest(Form):
-            def __init__(self, *args, **kwargs):
-                kwargs['request'] = request
-                super().__init__(*args, **kwargs)
-        return AttendanceFormWithRequest
+    #     # Kelas sementara untuk menyuntikkan objek request ke Form __init__
+    #     class AttendanceFormWithRequest(Form):
+    #         def __init__(self, *args, **kwargs):
+    #             kwargs['request'] = request
+    #             super().__init__(*args, **kwargs)
+    #     return AttendanceFormWithRequest
 
     # Poin 4: Integrasi JavaScript kustom
     class Media:

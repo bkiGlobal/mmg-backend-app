@@ -45,10 +45,10 @@ class AttendanceAdminForm(forms.ModelForm):
             has_checked_in = instance and bool(instance.photo_check_in)
             
             # Jika instance sudah ada tetapi belum check-in, atau ini entri baru
-            if not has_checked_in:
-                # Disabled di Python memastikan field tidak dapat diisi saat dimuat
-                self.fields['photo_check_out'].disabled = True
-                self.fields['check_out_location'].disabled = True 
+            # if not has_checked_in:
+            #     # Disabled di Python memastikan field tidak dapat diisi saat dimuat
+            #     self.fields['photo_check_out'].disabled = True
+            #     self.fields['check_out_location'].disabled = True 
 
     def clean(self):
         cleaned_data = super().clean()
