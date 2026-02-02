@@ -1,10 +1,17 @@
 from rest_framework import serializers
 from .models import *
 from project.models import ProgressReport
-from project.serializers import ProjectSimpleSerializer
-from team.serializers import SignatureSerializer
-from inventory.serializers import MaterialSerializer
+from team.serializers import *
+from inventory.serializers import *
 from core.serializers import *
+
+class ProjectSimpleSerializer(serializers.ModelSerializer):
+    location = LocationSerializer(read_only=True)
+
+    class Meta:
+        model = Project
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
 class BillOfQuantityVersionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,7 +27,6 @@ class SignatureOnBillOfQuantitySerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
-
 class ProgressReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProgressReport
@@ -32,6 +38,14 @@ class BillOfQuantitySerializer(serializers.ModelSerializer):
     boq_versions = BillOfQuantityVersionSerializer(many=True, read_only=True)
     boq_signatures = SignatureOnBillOfQuantitySerializer(many=True, read_only=True)
     reports_boq = ProgressReportSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = BillOfQuantity
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
+class BillOfQuantitySimpleSerializer(serializers.ModelSerializer):
+    project = ProjectSimpleSerializer(read_only=True)
 
     class Meta:
         model = BillOfQuantity
@@ -62,6 +76,14 @@ class PaymentRequestSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
+class PaymentRequestSimpleSerializer(serializers.ModelSerializer):
+    project = ProjectSimpleSerializer(read_only=True)
+
+    class Meta:
+        model = PaymentRequest
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
 class ExpenseDetailSerializer(serializers.ModelSerializer):
     category = ExpenseCategorySerializer(read_only=True)
     unit_type = UnitTypeSerializer(read_only=True)
@@ -85,6 +107,14 @@ class ExpenseOnProjectSerializer(serializers.ModelSerializer):
     project = ProjectSimpleSerializer(read_only=True)
     expense_detail = ExpenseDetailSerializer(many=True, read_only=True)
     expense_material = ExpenseForMaterialSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ExpenseOnProject
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
+class ExpenseOnProjectSimpleSerializer(serializers.ModelSerializer):
+    project = ProjectSimpleSerializer(read_only=True)
 
     class Meta:
         model = ExpenseOnProject

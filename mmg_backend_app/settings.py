@@ -55,7 +55,6 @@ INSTALLED_APPS = [
     'import_export',
     'mapwidgets',
     'mmg_backend_app',
-    'nested_admin',
     'rangefilter',
     'core',
     'finance',
@@ -63,6 +62,7 @@ INSTALLED_APPS = [
     'project',
     'team',
     'rest_framework_simplejwt',
+    'nested_admin',
 ]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
@@ -92,6 +92,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 SIMPLE_JWT = {

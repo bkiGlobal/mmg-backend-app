@@ -1,8 +1,46 @@
 from rest_framework import serializers
 from .models import *
+from project.models import *
 from core.serializers import LocationSerializer
-from project.serializers import ProjectSimpleSerializer
 from django.contrib.auth.models import User
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from decouple import config
+
+class PasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            user = User.objects.get(email=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User with this email does not exist.")
+        return value
+
+    def save(self):
+        request = self.context.get('request')
+        email = self.validated_data['email']
+        user = User.objects.get(email=email)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_link = request.build_absolute_uri(f'{config("BASE_URL")}reset-password-confirm/{uid}/{token}/')
+        send_mail(
+            'Password Reset Request',
+            f'Click the link to reset your password: {reset_link}',
+            'noreply@mmg-construction.com',
+            [email],
+            fail_silently=False,
+        )
+
+class ProjectSimpleSerializer(serializers.ModelSerializer):
+    location = LocationSerializer(read_only=True)
+
+    class Meta:
+        model = Project
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,8 +67,15 @@ class ProfileSimpleSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('id', 'updated_at')
 
+class TeamSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Team
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
 class TeamMemberSerializer(serializers.ModelSerializer):
     user = ProfileSimpleSerializer(read_only=True)
+    team = TeamSimpleSerializer(read_only=True)
 
     class Meta:
         model = TeamMember
@@ -45,13 +90,11 @@ class TeamSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
-class TeamMemberUserSerializer(serializers.ModelSerializer):
-    team = TeamSerializer(read_only=True)
-
+class TeamSimpleSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TeamMember
+        model = Team
         fields = '__all__'
-        read_only_fields = ('id', 'timestamp')
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
 class SignatureSerializer(serializers.ModelSerializer):
     user = ProfileSimpleSerializer(read_only=True)
@@ -103,6 +146,15 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
+class LeaveRequestSimpleSerializer(serializers.ModelSerializer):
+    user = ProfileSimpleSerializer(read_only=True)
+    approved_by = ProfileSimpleSerializer(read_only=True)
+
+    class Meta:
+        model = LeaveRequest
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
 class ProfileSerializer(serializers.ModelSerializer):
     location = LocationSerializer(read_only=True)
     user = UserSerializer(read_only=True)
@@ -138,5 +190,19 @@ class SubContractorSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SubContractor
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
+class SubContractorSimpleSerializer(serializers.ModelSerializer):
+    locations = LocationSerializer(read_only=True)
+
+    class Meta:
+        model = SubContractor
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Announcement
         fields = '__all__'
         read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')

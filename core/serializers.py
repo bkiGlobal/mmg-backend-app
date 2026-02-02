@@ -2,14 +2,15 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from .models import *
 from team.models import Profile
+from django.shortcuts import get_object_or_404
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        profile = Profile.objects.filter(user=user)
-        if profile.exists():
-            token['id'] = f'{profile.first().id}'
+        profile = get_object_or_404(Profile, user=user)
+        token['id'] = str(profile.pk)
+
         return token
     
 class LocationSerializer(serializers.ModelSerializer):

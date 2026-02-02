@@ -9,11 +9,11 @@ from django.db.models import Q
 class LocationAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            location = get_object_or_404(Location, pk=pk, is_deleted=False)
+            location = get_object_or_404(Location, pk=pk)
             serializer = LocationSerializer(location)
             return Response(serializer.data)
         else:
-            locations = Location.objects.filter(is_deleted=False)
+            locations = Location.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 locations = locations.filter(
@@ -32,7 +32,7 @@ class LocationAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        location = get_object_or_404(Location, pk=pk, is_deleted=False)
+        location = get_object_or_404(Location, pk=pk)
         serializer = LocationSerializer(location, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -40,18 +40,18 @@ class LocationAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        location = get_object_or_404(Location, pk=pk, is_deleted=False)
+        location = get_object_or_404(Location, pk=pk)
         location.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class ExpenseCategoryAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            category = get_object_or_404(ExpenseCategory, pk=pk, is_deleted=False)
+            category = get_object_or_404(ExpenseCategory, pk=pk)
             serializer = ExpenseCategorySerializer(category)
             return Response(serializer.data)
         else:
-            categories = ExpenseCategory.objects.filter(is_deleted=False)
+            categories = ExpenseCategory.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
@@ -69,7 +69,7 @@ class ExpenseCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        category = get_object_or_404(ExpenseCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(ExpenseCategory, pk=pk)
         serializer = ExpenseCategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -77,18 +77,18 @@ class ExpenseCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        category = get_object_or_404(ExpenseCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(ExpenseCategory, pk=pk)
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class IncomeCategoryAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            category = get_object_or_404(IncomeCategory, pk=pk, is_deleted=False)
+            category = get_object_or_404(IncomeCategory, pk=pk)
             serializer = IncomeCategorySerializer(category)
             return Response(serializer.data)
         else:
-            categories = IncomeCategory.objects.filter(is_deleted=False)
+            categories = IncomeCategory.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
@@ -106,7 +106,7 @@ class IncomeCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        category = get_object_or_404(IncomeCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(IncomeCategory, pk=pk)
         serializer = IncomeCategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -114,18 +114,18 @@ class IncomeCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        category = get_object_or_404(IncomeCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(IncomeCategory, pk=pk)
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
 class DocumentTypeAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            doc_type = get_object_or_404(DocumentType, pk=pk, is_deleted=False)
+            doc_type = get_object_or_404(DocumentType, pk=pk)
             serializer = DocumentTypeSerializer(doc_type)
             return Response(serializer.data)
         else:
-            doc_types = DocumentType.objects.filter(is_deleted=False)
+            doc_types = DocumentType.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 doc_types = doc_types.filter(
@@ -143,7 +143,7 @@ class DocumentTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        doc_type = get_object_or_404(DocumentType, pk=pk, is_deleted=False)
+        doc_type = get_object_or_404(DocumentType, pk=pk)
         serializer = DocumentTypeSerializer(doc_type, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -151,18 +151,18 @@ class DocumentTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        doc_type = get_object_or_404(DocumentType, pk=pk, is_deleted=False)
+        doc_type = get_object_or_404(DocumentType, pk=pk)
         doc_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class WorkTypeAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            work_type = get_object_or_404(WorkType, pk=pk, is_deleted=False)
+            work_type = get_object_or_404(WorkType, pk=pk)
             serializer = WorkTypeSerializer(work_type)
             return Response(serializer.data)
         else:
-            work_types = WorkType.objects.filter(is_deleted=False)
+            work_types = WorkType.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 work_types = work_types.filter(
@@ -180,7 +180,7 @@ class WorkTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        work_type = get_object_or_404(WorkType, pk=pk, is_deleted=False)
+        work_type = get_object_or_404(WorkType, pk=pk)
         serializer = WorkTypeSerializer(work_type, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -188,18 +188,18 @@ class WorkTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        work_type = get_object_or_404(WorkType, pk=pk, is_deleted=False)
+        work_type = get_object_or_404(WorkType, pk=pk)
         work_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
 class MaterialCategoryAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            category = get_object_or_404(MaterialCategory, pk=pk, is_deleted=False)
+            category = get_object_or_404(MaterialCategory, pk=pk)
             serializer = MaterialCategorySerializer(category)
             return Response(serializer.data)
         else:
-            categories = MaterialCategory.objects.filter(is_deleted=False)
+            categories = MaterialCategory.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
@@ -217,7 +217,7 @@ class MaterialCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        category = get_object_or_404(MaterialCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(MaterialCategory, pk=pk)
         serializer = MaterialCategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -225,18 +225,18 @@ class MaterialCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        category = get_object_or_404(MaterialCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(MaterialCategory, pk=pk)
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class ToolCategoryAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            category = get_object_or_404(ToolCategory, pk=pk, is_deleted=False)
+            category = get_object_or_404(ToolCategory, pk=pk, isq_deleted=False)
             serializer = ToolCategorySerializer(category)
             return Response(serializer.data)
         else:
-            categories = ToolCategory.objects.filter(is_deleted=False)
+            categories = ToolCategory.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
@@ -254,7 +254,7 @@ class ToolCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        category = get_object_or_404(ToolCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(ToolCategory, pk=pk)
         serializer = ToolCategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -262,18 +262,18 @@ class ToolCategoryAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        category = get_object_or_404(ToolCategory, pk=pk, is_deleted=False)
+        category = get_object_or_404(ToolCategory, pk=pk)
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class UnitTypeAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            unit_type = get_object_or_404(UnitType, pk=pk, is_deleted=False)
+            unit_type = get_object_or_404(UnitType, pk=pk)
             serializer = UnitTypeSerializer(unit_type)
             return Response(serializer.data)
         else:
-            unit_types = UnitType.objects.filter(is_deleted=False)
+            unit_types = UnitType.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 unit_types = unit_types.filter(
@@ -291,7 +291,7 @@ class UnitTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        unit_type = get_object_or_404(UnitType, pk=pk, is_deleted=False)
+        unit_type = get_object_or_404(UnitType, pk=pk)
         serializer = UnitTypeSerializer(unit_type, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -299,18 +299,18 @@ class UnitTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        unit_type = get_object_or_404(UnitType, pk=pk, is_deleted=False)
+        unit_type = get_object_or_404(UnitType, pk=pk)
         unit_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class BrandAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            brand = get_object_or_404(Brand, pk=pk, is_deleted=False)
+            brand = get_object_or_404(Brand, pk=pk)
             serializer = BrandSerializer(brand)
             return Response(serializer.data)
         else:
-            brands = Brand.objects.filter(is_deleted=False)
+            brands = Brand.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 brands = brands.filter(
@@ -328,7 +328,7 @@ class BrandAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        brand = get_object_or_404(Brand, pk=pk, is_deleted=False)
+        brand = get_object_or_404(Brand, pk=pk)
         serializer = BrandSerializer(brand, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -336,18 +336,18 @@ class BrandAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        brand = get_object_or_404(Brand, pk=pk, is_deleted=False)
+        brand = get_object_or_404(Brand, pk=pk)
         brand.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class FinanceTypeAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            finance_type = get_object_or_404(FinanceType, pk=pk, is_deleted=False)
+            finance_type = get_object_or_404(FinanceType, pk=pk)
             serializer = FinanceTypeSerializer(finance_type)
             return Response(serializer.data)
         else:
-            finance_types = FinanceType.objects.filter(is_deleted=False)
+            finance_types = FinanceType.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 finance_types = finance_types.filter(
@@ -365,7 +365,7 @@ class FinanceTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        finance_type = get_object_or_404(FinanceType, pk=pk, is_deleted=False)
+        finance_type = get_object_or_404(FinanceType, pk=pk)
         serializer = FinanceTypeSerializer(finance_type, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -373,18 +373,18 @@ class FinanceTypeAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        finance_type = get_object_or_404(FinanceType, pk=pk, is_deleted=False)
+        finance_type = get_object_or_404(FinanceType, pk=pk)
         finance_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
 class PaymentViaAPIView(APIView):
     def get(self, request, pk=None):
         if pk:
-            payment_via = get_object_or_404(PaymentVia, pk=pk, is_deleted=False)
+            payment_via = get_object_or_404(PaymentVia, pk=pk)
             serializer = PaymentViaSerializer(payment_via)
             return Response(serializer.data)
         else:
-            payment_vias = PaymentVia.objects.filter(is_deleted=False)
+            payment_vias = PaymentVia.objects.all()
             search_query = request.query_params.get('search', None)
             if search_query:
                 payment_vias = payment_vias.filter(
@@ -402,7 +402,7 @@ class PaymentViaAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
-        payment_via = get_object_or_404(PaymentVia, pk=pk, is_deleted=False)
+        payment_via = get_object_or_404(PaymentVia, pk=pk)
         serializer = PaymentViaSerializer(payment_via, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -410,6 +410,6 @@ class PaymentViaAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        payment_via = get_object_or_404(PaymentVia, pk=pk, is_deleted=False)
+        payment_via = get_object_or_404(PaymentVia, pk=pk)
         payment_via.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

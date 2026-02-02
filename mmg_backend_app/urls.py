@@ -27,6 +27,7 @@ urlpatterns = [
     path('', RedirectView.as_view(url='/admin/', permanent=False), name='root-redirect'),
     path('admin/', admin.site.urls),
     path('encrypted-media<path:path>/', FetchView.as_view(), name=FETCH_URL_NAME),
+    path('api/core/', include('core.urls')),
     path('api/finance/', include('finance.urls')),
     path('api/inventory/', include('inventory.urls')),
     path('api/project/', include('project.urls')),

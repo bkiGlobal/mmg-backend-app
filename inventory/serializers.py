@@ -1,8 +1,15 @@
 from rest_framework import serializers
 from .models import *
 from core.serializers import *
-from project.serializers import ProjectSimpleSerializer
 from team.serializers import ProfileSimpleSerializer
+
+class ProjectSimpleSerializer(serializers.ModelSerializer):
+    location = LocationSerializer(read_only=True)
+
+    class Meta:
+        model = Project
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
 class MaterialOnProjectSerializer(serializers.ModelSerializer):
     project = ProjectSimpleSerializer(read_only=True)
@@ -24,6 +31,16 @@ class MaterialSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
 
+class MaterialSimpleSerializer(serializers.ModelSerializer):
+    category = MaterialCategorySerializer(read_only=True)
+    brand = BrandSerializer(read_only=True)
+    unit = UnitTypeSerializer(read_only=True)
+
+    class Meta:
+        model = Material
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+
 class ToolOnProjectSerializer(serializers.ModelSerializer):
     project = ProjectSimpleSerializer(read_only=True)
 
@@ -35,6 +52,14 @@ class ToolOnProjectSerializer(serializers.ModelSerializer):
 class ToolSerializer(serializers.ModelSerializer):
     category = ToolCategorySerializer(read_only=True)
     tools_project = ToolOnProjectSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Tool
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
+    
+class ToolSimpleSerializer(serializers.ModelSerializer):
+    category = ToolCategorySerializer(read_only=True)
 
     class Meta:
         model = Tool

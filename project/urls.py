@@ -2,40 +2,166 @@ from django.urls import path
 from .views import *
 
 urlpatterns = [
-    path('project/', ProjectAPIView.as_view(), name='project_list'),
-    path('project/<str:pk>/', ProjectAPIView.as_view(), name='project_detail'),
-    path('project-document/', DocumentAPIView.as_view(), name='project_document_list'),
-    path('project-document/<str:pk>/', DocumentAPIView.as_view(), name='project_document_detail'),
-    path('project-document-version/', DocumentVersionAPIView.as_view(), name='project_document_version_list'),
-    path('project-document-version/<str:pk>/', DocumentVersionAPIView.as_view(), name='project_document_version_detail'),
-    path('project-document-signature/', SignatureOnDocumentAPIView.as_view(), name='project_document_signature_list'),
-    path('project-document-signature/<str:pk>/', SignatureOnDocumentAPIView.as_view(), name='project_document_signature_detail'),
-    path('project-drawing/', DrawingAPIView.as_view(), name='project_drawing_list'),
-    path('project-drawing/<str:pk>/', DrawingAPIView.as_view(), name='project_drawing_detail'),
-    path('project-drawing-version/', DrawingVersionAPIView.as_view(), name='project_drawing_version_list'),
-    path('project-drawing-version/<str:pk>/', DrawingVersionAPIView.as_view(), name='project_drawing_version_detail'),
-    path('project-drawing-signature/', SignatureOnDrawingAPIView.as_view(), name='project_drawing_signature_list'),
-    path('project-drawing-signature/<str:pk>/', SignatureOnDrawingAPIView.as_view(), name='project_drawing_signature_detail'),
-    path('project-defect/', DefectAPIView.as_view(), name='project_defect_list'),
-    path('project-defect/<str:pk>/', DefectAPIView.as_view(), name='project_defect_detail'),
-    path('project-defect-detail/', DefectDetailAPIView.as_view(), name='project_defect_detail_list'),
-    path('project-defect-detail/<str:pk>/', DefectDetailAPIView.as_view(), name='project_defect_detail_detail'),
-    path('project-defect-signature/', SignatureOnDeflectAPIView.as_view(), name='project_defect_signature_list'),
-    path('project-defect-signature/<str:pk>/', SignatureOnDeflectAPIView.as_view(), name='project_defect_signature_detail'),
-    path('error-log/', ErrorLogAPIView.as_view(), name='error_log_list'),
-    path('error-log/<str:pk>/', ErrorLogAPIView.as_view(), name='error_log_detail'),
-    path('error-log-detail/', ErrorLogDetailAPIView.as_view(), name='error_log_detail_list'),
-    path('error-log-detail/<str:pk>/', ErrorLogDetailAPIView.as_view(), name='error_log_detail_detail'),
-    path('error-log-signature/', SignatureOnErrorLogAPIView.as_view(), name='error_log_signature_list'),
-    path('error-log-signature/<str:pk>/', SignatureOnErrorLogAPIView.as_view(), name='error_log_signature_detail'),
-    path('project-schedule/', ScheduleAPIView.as_view(), name='project_schedule_list'),
-    path('project-schedule/<str:pk>/', ScheduleAPIView.as_view(), name='project_schedule_detail'),
-    path('project-schedule-signature/', SignatureOnScheduleAPIView.as_view(), name='project_schedule_signature_list'),
-    path('project-schedule-signature/<str:pk>/', SignatureOnScheduleAPIView.as_view(), name='project_schedule_signature_detail'),
-    path('project-progress-report/', ProgressReportAPIView.as_view(), name='project_progress_report_list'),
-    path('project-progress-report/<str:pk>/', ProgressReportAPIView.as_view(), name='project_progress_report_detail'),
-    path('work-method/', WorkMethodAPIView.as_view(), name='work_method_list'),
-    path('work-method/<str:pk>/', WorkMethodAPIView.as_view(), name='work_method_detail'),
-    path('work-method-signature/', SignatureOnWorkMethodAPIView.as_view(), name='work_method_signature_list'),
-    path('work-method-signature/<str:pk>/', SignatureOnWorkMethodAPIView.as_view(), name='work_method_signature_detail'),
+    path('project/', ProjectModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_list'),
+    path('project/<str:pk>/', ProjectModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_detail'),
+    path('project-document/', DocumentModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_document_list'),
+    path('project-document/<str:pk>/', DocumentModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_document_detail'),
+    path('project-document-version/', DocumentVersionModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_document_version_list'),
+    path('project-document-version/<str:pk>/', DocumentVersionModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_document_version_detail'),
+    path('project-document-signature/', SignatureOnDocumentModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_document_signature_list'),
+    path('project-document-signature/<str:pk>/', SignatureOnDocumentModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_document_signature_detail'),
+    path('project-drawing/', DrawingModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_drawing_list'),
+    path('project-drawing/<str:pk>/', DrawingModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_drawing_detail'),
+    path('project-drawing-version/', DrawingVersionModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_drawing_version_list'),
+    path('project-drawing-version/<str:pk>/', DrawingVersionModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_drawing_version_detail'),
+    path('project-drawing-signature/', SignatureOnDrawingModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_drawing_signature_list'),
+    path('project-drawing-signature/<str:pk>/', SignatureOnDrawingModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_drawing_signature_detail'),
+    path('project-defect/', DefectModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_defect_list'),
+    path('project-defect/<str:pk>/', DefectModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_defect_detail'),
+    path('project-defect-detail/', DefectDetailModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_defect_detail_list'),
+    path('project-defect-detail/<str:pk>/', DefectDetailModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_defect_detail_detail'),
+    path('project-defect-signature/', SignatureOnDeflectModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_defect_signature_list'),
+    path('project-defect-signature/<str:pk>/', SignatureOnDeflectModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_defect_signature_detail'),
+    path('error-log/', ErrorLogModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='error_log_list'),
+    path('error-log/<str:pk>/', ErrorLogModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='error_log_detail'),
+    path('error-log-detail/', ErrorLogDetailModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='error_log_detail_list'),
+    path('error-log-detail/<str:pk>/', ErrorLogDetailModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='error_log_detail_detail'),
+    path('error-log-signature/', SignatureOnErrorLogModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='error_log_signature_list'),
+    path('error-log-signature/<str:pk>/', SignatureOnErrorLogModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='error_log_signature_detail'),
+    path('project-schedule/', ScheduleModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_schedule_list'),
+    path('project-schedule/<str:pk>/', ScheduleModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_schedule_detail'),
+    path('project-schedule-signature/', SignatureOnScheduleModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_schedule_signature_list'),
+    path('project-schedule-signature/<str:pk>/', SignatureOnScheduleModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_schedule_signature_detail'),
+    path('project-progress-report/', ProgressReportModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='project_progress_report_list'),
+    path('project-progress-report/<str:pk>/', ProgressReportModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='project_progress_report_detail'),
+    path('work-method/', WorkMethodModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='work_method_list'),
+    path('work-method/<str:pk>/', WorkMethodModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='work_method_detail'),
+    path('work-method-signature/', SignatureOnWorkMethodModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='work_method_signature_list'),
+    path('work-method-signature/<str:pk>/', SignatureOnWorkMethodModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'delete': 'destroy'
+    }), name='work_method_signature_detail'),
 ]

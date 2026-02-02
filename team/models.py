@@ -144,7 +144,6 @@ class Profile(AuditModel):
             leave_req.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
         return super().delete(using, keep_parents)
 
-# Create your models here.
 class Team(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -259,6 +258,8 @@ class Attendance(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_attendance')
     date = models.DateField(auto_now_add=True)
+    check_in_location_label = models.CharField(max_length=108, null=True, blank=True)
+    check_out_location_label = models.CharField(max_length=108, null=True, blank=True)
     check_in = models.DateTimeField(null=True, blank=True)
     check_out = models.DateTimeField(null=True, blank=True)
     check_in_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
@@ -340,3 +341,8 @@ class SignatureOnLeaveRequest(AuditModel):
             return f'Signature {self.signature.user.full_name} on BOQ {self.leave_request.user.full_name} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
         else:
             return f'Signature {self.signature.user.full_name} on BOQ {self.leave_request.user.full_name} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
+    
+class Announcement(AuditModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=128)
+    message = models.CharField(max_length=512)

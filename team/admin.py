@@ -296,7 +296,7 @@ class AttendanceInline(admin.TabularInline):
     model           = Attendance
     extra           = 1
     classes         = ['collapse',]
-    fields          = ('date', 'check_in', 'check_out', 'check_in_location', 'check_out_location', 'status', 'photo_check_in', 'photo_check_out')
+    fields          = ('date', 'check_in_location_label', 'check_out_location_label', 'check_in', 'check_out', 'check_in_location', 'check_out_location', 'status', 'photo_check_in', 'photo_check_out')
     readonly_fields = ('date', 'check_in', 'check_out', 'status')
 
     formfield_overrides = {
