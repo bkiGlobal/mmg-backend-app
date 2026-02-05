@@ -277,34 +277,54 @@ class Attendance(AuditModel):
     def save(self, *args, **kwargs):
         self.set_attendance_status()
         super().save(*args, **kwargs)
-    
+        
     def set_attendance_status(self):
         """
         Atur status absensi berdasarkan jam check in dan check out.
+        Memperhatikan Timezone dan Null Safety.
         """
-        # Set default status jika belum ada jam
+        
+        # 1. Auto-fill waktu saat ini jika foto ada tapi waktu belum ada
+        # Menggunakan timezone.now() agar sesuai settingan Django (USE_TZ)
         if not self.check_in and self.photo_check_in:
             self.check_in = timezone.now()
-        elif not self.check_out and self.photo_check_out:
+        
+        if not self.check_out and self.photo_check_out:
             self.check_out = timezone.now()
 
-        # Batas waktu
-        batas_check_in = time(9, 0, 0)  # 9:00 pagi
-        batas_check_out = time(17, 0, 0)  # 17:00 / 5 sore
+        # 2. Guard Clause: Jika check_in masih kosong, hentikan fungsi untuk mencegah error
+        if not self.check_in:
+            return 
 
-        jam_check_in = self.check_in.time()
-        jam_check_out = self.check_out.time() if self.check_out else None
+        # 3. Konversi ke Local Time (SANGAT PENTING)
+        # Database menyimpan UTC, kita harus ubah ke waktu lokal user (misal: WIB) sebelum ambil .time()
+        local_check_in = timezone.localtime(self.check_in)
+        local_check_out = timezone.localtime(self.check_out) if self.check_out else None
 
-        if jam_check_in <= batas_check_in and (not jam_check_out or jam_check_out >= batas_check_out):
-            self.status = AttendanceStatus.ONTIME
-        elif jam_check_in > batas_check_in and (not jam_check_out or jam_check_out >= batas_check_out):
-            self.status = AttendanceStatus.LATE
-        elif jam_check_in <= batas_check_in and jam_check_out and jam_check_out < batas_check_out:
-            self.status = AttendanceStatus.EARLY_LEAVE
-        elif jam_check_in > batas_check_in and jam_check_out and jam_check_out < batas_check_out:
+        # Ambil jam-nya saja
+        jam_masuk = local_check_in.time()
+        jam_keluar = local_check_out.time() if local_check_out else None
+
+        # 4. Tentukan Batas Waktu
+        batas_masuk = time(9, 0, 0)   # 09:00
+        batas_keluar = time(17, 0, 0) # 17:00
+
+        # 5. Logic boolean biar lebih mudah dibaca (Refactoring)
+        is_late = jam_masuk > batas_masuk
+        
+        # Jika belum check out, kita asumsikan TIDAK pulang cepat (masih kerja)
+        is_early_leave = jam_keluar is not None and jam_keluar < batas_keluar
+
+        # 6. Penentuan Status
+        if is_late and is_early_leave:
             self.status = AttendanceStatus.LATE_EARLY_LEAVE
+        elif is_late:
+            self.status = AttendanceStatus.LATE
+        elif is_early_leave:
+            self.status = AttendanceStatus.EARLY_LEAVE
         else:
-            self.status = AttendanceStatus.ONTIME  # fallback default
+            # Masuk tepat waktu DAN (pulang tepat waktu ATAU belum pulang)
+            self.status = AttendanceStatus.ONTIME
     
 class LeaveRequest (AuditModel):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_leave_request')
