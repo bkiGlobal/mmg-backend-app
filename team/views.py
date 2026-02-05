@@ -244,7 +244,7 @@ class AttendanceModelViewSet(viewsets.ModelViewSet):
                 query &= Q(user__full_name__icontains=search_query) | Q(status__icontains=search_query)
             if user:
                 userData = get_object_or_404(Profile, pk=user)
-                if userData.role.lower() != 'ceo' or userData.role.lower() != 'it':
+                if userData.role.lower() != 'ceo' and userData.role.lower() != 'it':
                     query &= Q(user__id=user)
             if date:
                 query &= Q(date=date)
