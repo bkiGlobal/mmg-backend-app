@@ -254,8 +254,8 @@ class AttendanceModelViewSet(viewsets.ModelViewSet):
                 today = timezone.now().date()
                 start_of_week = today - timedelta(days=today.weekday())  # Senin minggu ini
                 end_of_week = start_of_week + timedelta(days=6)  # Minggu minggu ini
-
-                if (userData.role.lower == 'ceo' or userData.role.lower == 'it') and is_all == 'true':
+                
+                if (userData.role.lower() == 'ceo' or userData.role.lower() == 'it') and is_all == 'true':
                     queryset = queryset
                 elif is_all == 'true':
                     queryset = queryset.filter(user=user).order_by('-date')
