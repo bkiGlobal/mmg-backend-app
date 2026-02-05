@@ -277,7 +277,7 @@ class Attendance(AuditModel):
     def save(self, *args, **kwargs):
         self.set_attendance_status()
         super().save(*args, **kwargs)
-        
+
     def set_attendance_status(self):
         """
         Atur status absensi berdasarkan jam check in dan check out.
@@ -306,7 +306,7 @@ class Attendance(AuditModel):
         jam_keluar = local_check_out.time() if local_check_out else None
 
         # 4. Tentukan Batas Waktu
-        batas_masuk = time(9, 0, 0)   # 09:00
+        batas_masuk = time(10, 0, 0)   # 10:00
         batas_keluar = time(17, 0, 0) # 17:00
 
         # 5. Logic boolean biar lebih mudah dibaca (Refactoring)
