@@ -286,29 +286,38 @@ def parse_geo_json(geo_data):
     except (ValueError, TypeError, json.JSONDecodeError, IndexError):
         return None
     return None
-def get_distance_meters(coord1, coord2):
-    """
-    Menghitung jarak antara dua titik koordinat (lat, lon).
-    Input: coord1 = (lat1, lon1), coord2 = (lat2, lon2)
-    Output: Jarak dalam METER (float)
-    """
-    # 1. Pecah tuple menjadi lat/lon
-    lat1, lon1 = coord1
-    lat2, lon2 = coord2
 
-    # 2. Konversi desimal ke radians
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+def calculate_distance_meters(coords_1, coords_2):
+    """
+    Menghitung jarak antara dua titik (Latitude, Longitude).
+    Input: Tuple (latitude, longitude) dalam desimal.
+    Output: Jarak dalam METER (float).
+    """
+    # 1. Pastikan input valid
+    if not coords_1 or not coords_2:
+        return 0.0
 
-    # 3. Rumus Haversine
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a)) 
-    
-    # 4. Radius bumi (6371 km) dikali 1000 agar jadi Meter
-    r_meters = 6371 * 1000 
-    
-    return c * r_meters
+    # 2. Unpack tuple (Pastikan urutan Lat, Long konsisten!)
+    lat1, lon1 = coords_1
+    lat2, lon2 = coords_2
+
+    # 3. Konversi ke Radians (Wajib untuk rumus trigonometri)
+    lat1_rad = radians(lat1)
+    lon1_rad = radians(lon1)
+    lat2_rad = radians(lat2)
+    lon2_rad = radians(lon2)
+
+    # 4. Rumus Haversine (Delta)
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+
+    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    c = 2 * asin(sqrt(a))
+
+    # 5. Radius Bumi (R) = 6371 km = 6,371,000 meter
+    R_METERS = 6371000 
+
+    return c * R_METERS
 
 def validate_location(label, profile, project, latitude, longitude , radius=400):
     """Validasi apakah lokasi user berada dalam radius tertentu dari kantor."""
@@ -321,7 +330,7 @@ def validate_location(label, profile, project, latitude, longitude , radius=400)
     else:
         office_coords = (-8.653866713645598, 115.26167582162132)
     user_coords = (latitude, longitude)
-    distance = get_distance_meters(user_coords, office_coords)
+    distance = calculate_distance_meters(user_coords, office_coords)
     print(distance)
     return distance <= radius
 
