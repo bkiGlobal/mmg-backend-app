@@ -293,32 +293,29 @@ def calculate_distance_meters(coords_1, coords_2):
     Input: Tuple (latitude, longitude) dalam desimal.
     Output: Jarak dalam METER (float).
     """
-    try:
-        # 1. Pastikan input valid
-        if not coords_1 or not coords_2:
-            return 0.0
+    # 1. Pastikan input valid
+    if not coords_1 or not coords_2:
+        return 0.0
 
-        # 2. Unpack tuple (Pastikan urutan Lat, Long konsisten!)
-        lat1, lon1 = coords_1
-        lat2, lon2 = coords_2
+    # 2. Unpack tuple (Pastikan urutan Lat, Long konsisten!)
+    lat1, lon1 = coords_1
+    lat2, lon2 = coords_2
 
-        # 3. Konversi ke Radians (Wajib untuk rumus trigonometri)
-        lat1_rad = radians(lat1)
-        lon1_rad = radians(lon1)
-        lat2_rad = radians(lat2)
-        lon2_rad = radians(lon2)
+    # 3. Konversi ke Radians (Wajib untuk rumus trigonometri)
+    lat1_rad = radians(lat1)
+    lon1_rad = radians(lon1)
+    lat2_rad = radians(lat2)
+    lon2_rad = radians(lon2)
 
-        # 4. Rumus Haversine (Delta)
-        dlon = lon2_rad - lon1_rad
-        dlat = lat2_rad - lat1_rad
+    # 4. Rumus Haversine (Delta)
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
 
-        a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
-        c = 2 * asin(sqrt(a))
+    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    c = 2 * asin(sqrt(a))
 
-        # 5. Radius Bumi (R) = 6371 km = 6,371,000 meter
-        R_METERS = 6371000 
-    except Exception as e:
-        print(f"Error calculating distance: {e}")
+    # 5. Radius Bumi (R) = 6371 km = 6,371,000 meter
+    R_METERS = 6371000 
 
     return c * R_METERS
 
@@ -352,6 +349,7 @@ class CheckInView(APIView):
                 user_id = raw_user_data['id']
                 
             profile = get_object_or_404(Profile, pk=user_id)
+            print("Profile ID:", user_id)
 
         except (ValueError, KeyError, TypeError):
              return Response({"error": "Data user tidak valid"}, status=status.HTTP_400_BAD_REQUEST)
