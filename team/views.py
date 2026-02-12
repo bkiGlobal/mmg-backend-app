@@ -287,7 +287,7 @@ def parse_geo_json(geo_data):
         return None
     return None
 
-def validate_location(label, profile, project, latitude, longitude , radius=200):
+def validate_location(label, profile, project, latitude, longitude , radius=400):
     """Validasi apakah lokasi user berada dalam radius tertentu dari kantor."""
     if not latitude or not longitude:
         return False
