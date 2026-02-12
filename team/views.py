@@ -319,7 +319,7 @@ def calculate_distance_meters(coords_1, coords_2):
 
     return c * R_METERS
 
-def validate_location(label, profile, project, latitude, longitude , radius=400):
+def validate_location(label, profile, project, latitude, longitude , radius=3000):
     """Validasi apakah lokasi user berada dalam radius tertentu dari kantor."""
     if not latitude or not longitude:
         return False
