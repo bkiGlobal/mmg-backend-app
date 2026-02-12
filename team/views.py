@@ -11,8 +11,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import check_password
 from django.shortcuts import get_object_or_404
 from django.contrib.gis.geos import Point
-from geopy.distance import geodesic
 from datetime import timedelta
+from math import radians, cos, sin, asin, sqrt
     
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -286,6 +286,29 @@ def parse_geo_json(geo_data):
     except (ValueError, TypeError, json.JSONDecodeError, IndexError):
         return None
     return None
+def get_distance_meters(coord1, coord2):
+    """
+    Menghitung jarak antara dua titik koordinat (lat, lon).
+    Input: coord1 = (lat1, lon1), coord2 = (lat2, lon2)
+    Output: Jarak dalam METER (float)
+    """
+    # 1. Pecah tuple menjadi lat/lon
+    lat1, lon1 = coord1
+    lat2, lon2 = coord2
+
+    # 2. Konversi desimal ke radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # 3. Rumus Haversine
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    
+    # 4. Radius bumi (6371 km) dikali 1000 agar jadi Meter
+    r_meters = 6371 * 1000 
+    
+    return c * r_meters
 
 def validate_location(label, profile, project, latitude, longitude , radius=400):
     """Validasi apakah lokasi user berada dalam radius tertentu dari kantor."""
@@ -298,9 +321,8 @@ def validate_location(label, profile, project, latitude, longitude , radius=400)
     else:
         office_coords = (-8.653866713645598, 115.26167582162132)
     user_coords = (latitude, longitude)
-    print('ppppppppp')
-    print(geodesic(user_coords, office_coords).meters)
-    return geodesic(user_coords, office_coords).meters <= radius
+    distance = get_distance_meters(user_coords, office_coords)
+    return distance <= radius
 
 class CheckInView(APIView):
     def post(self, request):
