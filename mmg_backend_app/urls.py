@@ -21,7 +21,8 @@ from django.conf.urls.static import static
 from django.views.generic.base import RedirectView
 from django_encrypted_filefield.views import FetchView
 from django_encrypted_filefield.constants import FETCH_URL_NAME
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView
+from core.views import CustomTokenRefreshView
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/admin/', permanent=False), name='root-redirect'),
@@ -34,5 +35,5 @@ urlpatterns = [
     path('api/team/', include('team.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
-    path('api/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
