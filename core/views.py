@@ -8,6 +8,7 @@ from django.db.models import Q
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError
 import logging
+from rest_framework.permissions import AllowAny
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class CustomTokenRefreshView(TokenRefreshView):
     """
     Custom Refresh View untuk debugging kenapa refresh gagal
     """
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
 
