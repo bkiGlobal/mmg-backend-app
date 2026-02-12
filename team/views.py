@@ -299,7 +299,7 @@ def validate_location(label, profile, project, latitude, longitude , radius=400)
         office_coords = (-8.653866713645598, 115.26167582162132)
     user_coords = (latitude, longitude)
     print('ppppppppp')
-    print(geodesic(user_coords, office_coords).meters <= radius)
+    print(geodesic(user_coords, office_coords).meters)
     return geodesic(user_coords, office_coords).meters <= radius
 
 class CheckInView(APIView):
