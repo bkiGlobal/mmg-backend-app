@@ -1,12 +1,13 @@
 from django.urls import path
 from .views import *
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView
+from core.views import CustomTokenRefreshView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
-    path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('change_password/', ChangePasswordAPIView.as_view(), name='change_password'),
     path('password_reset/', PasswordResetView.as_view(), name='password_reset'),
     path('profile/', ProfileModelViewSet.as_view({
