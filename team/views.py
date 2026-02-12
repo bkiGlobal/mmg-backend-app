@@ -322,6 +322,7 @@ def validate_location(label, profile, project, latitude, longitude , radius=400)
         office_coords = (-8.653866713645598, 115.26167582162132)
     user_coords = (latitude, longitude)
     distance = get_distance_meters(user_coords, office_coords)
+    print(distance)
     return distance <= radius
 
 class CheckInView(APIView):
