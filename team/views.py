@@ -332,6 +332,7 @@ def validate_location(label, profile, project, latitude, longitude , radius=400)
     user_coords = (latitude, longitude)
     distance = calculate_distance_meters(user_coords, office_coords)
     print(distance)
+    print(label)
     return distance <= radius
 
 class CheckInView(APIView):
@@ -349,7 +350,6 @@ class CheckInView(APIView):
                 user_id = raw_user_data['id']
                 
             profile = get_object_or_404(Profile, pk=user_id)
-            print("Profile ID:", user_id)
 
         except (ValueError, KeyError, TypeError):
              return Response({"error": "Data user tidak valid"}, status=status.HTTP_400_BAD_REQUEST)
