@@ -485,6 +485,48 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return LeaveRequestSimpleSerializer
         return LeaveRequestSerializer
+    
+    def create(self, request, *args, **kwargs):
+        # 1. Ambil data mentah dari Flutter (buat copy agar bisa dimodifikasi)
+        data = request.data.copy()
+
+        # 2. Ekstraksi Data: Jika Flutter ngeyel mengirimkan format Object/Dictionary, 
+        # kita paksa ambil ID-nya saja di backend.
+        if isinstance(data.get('user'), dict):
+            data['user'] = data['user'].get('id')
+            
+        if isinstance(data.get('approved_by'), dict):
+            data['approved_by'] = data['approved_by'].get('id')
+
+        # 3. Pembersihan Data: Hapus audit fields dari request agar tidak bentrok 
+        # dengan fungsi save() di AuditModel Anda.
+        audit_fields = [
+            'created_at', 'updated_at', 'deleted_at', 
+            'created_by', 'updated_by', 'deleted_by', 'is_deleted'
+        ]
+        for field in audit_fields:
+            data.pop(field, None) # Hapus jika ada
+
+        # 4. Lempar ke Serializer untuk divalidasi
+        serializer = self.get_serializer(data=data)
+        
+        try:
+            # raise_exception=True akan mengembalikan JSON 400 Bad Request jika format salah
+            serializer.is_valid(raise_exception=True) 
+            self.perform_create(serializer) # Ini akan memicu fungsi save() di AuditModel Anda
+            
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            
+        except Exception as e:
+            # Jika database menolak, kita tangkap errornya agar mengembalikan JSON, BUKAN HTML
+            return Response(
+                {
+                    "error": "Terjadi kesalahan integritas pada database.", 
+                    "detail": str(e)
+                }, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class SignatureOnLeaveRequestModelViewSet(viewsets.ModelViewSet):
     queryset = SignatureOnLeaveRequest.objects.all()
