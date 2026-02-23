@@ -4,6 +4,7 @@ from .models import *
 from .serializers import *
 from rest_framework.response import Response
 from django.db.models import Q
+from django.db import IntegrityError
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
@@ -487,34 +488,50 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
         return LeaveRequestSerializer
     
     def create(self, request, *args, **kwargs):
-        # 1. Ambil data mentah dari Flutter dan buat copy agar bisa kita modifikasi (mutable)
+        # 1. Salin data dari request agar bisa kita modifikasi (request.data bersifat immutable)
         data = request.data.copy()
 
-        # 2. Daftar field 'sampah' dari Flutter yang harus kita buang sebelum masuk ke Serializer/Model
-        # Termasuk 'id' yang bernilai null, dan semua bawaan dari ...toJsonAudit()
-        fields_to_remove = [
-            'id', 
-            'created_at', 'created_by', 
-            'updated_at', 'updated_by', 
-            'is_deleted', 'deleted_at', 'deleted_by'
+        # 2. Pembersihan Paksa Audit Fields
+        # Karena Flutter Anda masih mengirimkan ...toJsonAudit(), kita WAJIB 
+        # membuangnya di sini sebelum divalidasi oleh DRF.
+        audit_fields = [
+            'created_at', 'updated_at', 'deleted_at', 
+            'created_by', 'updated_by', 'deleted_by', 'is_deleted'
         ]
-        
-        # 3. Proses pembersihan data
-        for field in fields_to_remove:
-            data.pop(field, None)
+        for field in audit_fields:
+            data.pop(field, None) # Hapus key audit jika ada di dalam request
 
-        # 4. Lempar data yang sudah bersih ke Serializer untuk divalidasi
+        # 3. Proses Validasi dan Penyimpanan
         serializer = self.get_serializer(data=data)
         
-        # Jika ada format yang salah (misal start_date salah format), kembalikan error JSON 400
-        serializer.is_valid(raise_exception=True) 
-        
-        # 5. Save ke database (Ini akan otomatis memicu fungsi save() di AuditModel Anda)
-        self.perform_create(serializer)
-        
-        # 6. Kembalikan respons sukses ke Flutter
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        try:
+            # is_valid akan memvalidasi tipe data (seperti user id dan format tanggal)
+            serializer.is_valid(raise_exception=True) 
+            
+            # perform_create akan memicu fungsi save() di AuditModel Anda yang sudah otomatis
+            self.perform_create(serializer) 
+            
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            
+        except IntegrityError as e:
+            # Menangkap error database agar mereturn JSON yang rapi, BUKAN halaman HTML 500
+            return Response(
+                {
+                    "error": "Terjadi kesalahan integritas pada database saat menyimpan data.", 
+                    "detail": str(e)
+                }, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            # Menangkap error umum lainnya
+            return Response(
+                {
+                    "error": "Gagal memproses permintaan cuti.", 
+                    "detail": str(e)
+                }, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class SignatureOnLeaveRequestModelViewSet(viewsets.ModelViewSet):
     queryset = SignatureOnLeaveRequest.objects.all()
