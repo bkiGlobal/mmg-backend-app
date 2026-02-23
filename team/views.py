@@ -490,6 +490,7 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
         user = get_object_or_404(Profile, pk=data.get('user'))
+        print(data)
 
         audit_fields = [
             'created_at', 'updated_at', 'deleted_at', 
