@@ -505,6 +505,9 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
             end_date=data.get('end_date'),
             reason=data.get('reason'),
             status=data.get('status', 'Pending'),
+            photo = data.get('photo'),
+            approved_by=None,
+            approved_date=None,
         )
         serializer = self.get_serializer(leave_request)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
