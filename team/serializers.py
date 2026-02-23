@@ -144,8 +144,7 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeaveRequest
         fields = '__all__'
-        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by', 
-            'is_deleted', 'deleted_at', 'deleted_by')
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by', 'is_deleted', 'deleted_at', 'deleted_by')
 
 class LeaveRequestSimpleSerializer(serializers.ModelSerializer):
     user = ProfileSimpleSerializer(read_only=True)
