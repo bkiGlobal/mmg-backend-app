@@ -488,12 +488,9 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
         return LeaveRequestSerializer
     
     def create(self, request, *args, **kwargs):
-        # 1. Salin data dari request agar bisa kita modifikasi (request.data bersifat immutable)
         data = request.data.copy()
+        user = get_object_or_404(Profile, pk=data.get('user'))
 
-        # 2. Pembersihan Paksa Audit Fields
-        # Karena Flutter Anda masih mengirimkan ...toJsonAudit(), kita WAJIB 
-        # membuangnya di sini sebelum divalidasi oleh DRF.
         audit_fields = [
             'created_at', 'updated_at', 'deleted_at', 
             'created_by', 'updated_by', 'deleted_by', 'is_deleted'
@@ -501,37 +498,15 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
         for field in audit_fields:
             data.pop(field, None) # Hapus key audit jika ada di dalam request
 
-        # 3. Proses Validasi dan Penyimpanan
-        serializer = self.get_serializer(data=data)
-        
-        try:
-            # is_valid akan memvalidasi tipe data (seperti user id dan format tanggal)
-            serializer.is_valid(raise_exception=True) 
-            
-            # perform_create akan memicu fungsi save() di AuditModel Anda yang sudah otomatis
-            self.perform_create(serializer) 
-            
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-            
-        except IntegrityError as e:
-            # Menangkap error database agar mereturn JSON yang rapi, BUKAN halaman HTML 500
-            return Response(
-                {
-                    "error": "Terjadi kesalahan integritas pada database saat menyimpan data.", 
-                    "detail": str(e)
-                }, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            # Menangkap error umum lainnya
-            return Response(
-                {
-                    "error": "Gagal memproses permintaan cuti.", 
-                    "detail": str(e)
-                }, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        leave_request = LeaveRequest.objects.create(
+            user=user,
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            reason=data.get('reason'),
+            status=data.get('status', 'Pending'),
+        )
+        serializer = self.get_serializer(leave_request)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class SignatureOnLeaveRequestModelViewSet(viewsets.ModelViewSet):
     queryset = SignatureOnLeaveRequest.objects.all()
