@@ -488,28 +488,31 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
         return LeaveRequestSerializer
     
     def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        user = get_object_or_404(Profile, pk=data.get('user'))
+        try:
+            data = request.data.copy()
+            user = get_object_or_404(Profile, pk=data.get('user'))
 
-        audit_fields = [
-            'created_at', 'updated_at', 'deleted_at', 
-            'created_by', 'updated_by', 'deleted_by', 'is_deleted'
-        ]
-        for field in audit_fields:
-            data.pop(field, None) # Hapus key audit jika ada di dalam request
+            audit_fields = [
+                'created_at', 'updated_at', 'deleted_at', 
+                'created_by', 'updated_by', 'deleted_by', 'is_deleted'
+            ]
+            for field in audit_fields:
+                data.pop(field, None) # Hapus key audit jika ada di dalam request
 
-        leave_request = LeaveRequest.objects.create(
-            user=user,
-            start_date=data.get('start_date'),
-            end_date=data.get('end_date'),
-            reason=data.get('reason'),
-            status=data.get('status', 'Pending'),
-            photo = data.get('photo'),
-            approved_by=None,
-            approved_date=None,
-        )
-        serializer = self.get_serializer(leave_request)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            leave_request = LeaveRequest.objects.create(
+                user=user,
+                start_date=data.get('start_date'),
+                end_date=data.get('end_date'),
+                reason=data.get('reason'),
+                status=data.get('status', 'Pending'),
+                photo_proof=data.get('photo_proof'),
+                approved_by=None,
+                approved_date=None,
+            )
+            serializer = self.get_serializer(leave_request)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class SignatureOnLeaveRequestModelViewSet(viewsets.ModelViewSet):
     queryset = SignatureOnLeaveRequest.objects.all()
