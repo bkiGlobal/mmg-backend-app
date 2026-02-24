@@ -510,6 +510,7 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
                 approved_date=None,
             )
             serializer = self.get_serializer(leave_request)
+            print(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
