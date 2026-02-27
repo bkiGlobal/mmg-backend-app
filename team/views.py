@@ -514,23 +514,31 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-    def update(self, request, *args, **kwargs):
-            instance = self.get_object()
-            data = request.data.copy()
+    def update(self, request, *args, **kwargs):# Biarkan ini tetap melempar 404 bawaan jika data utama tidak ada
+        instance = self.get_object()
+        data = request.data.copy()
 
-            # Hanya izinkan update pada field tertentu
-            allowed_fields = ['start_date', 'end_date', 'reason', 'status', 'photo_proof', 'approved_by', 'approved_date']
-            for field in allowed_fields:
-                if field in data:
-                    if field == 'approved_by' and data[field] is not None:
-                        approved_by_user = get_object_or_404(Profile, pk=data[field])
+        allowed_fields = ['start_date', 'end_date', 'reason', 'status', 'photo_proof', 'approved_by', 'approved_date']
+        
+        for field in allowed_fields:
+            if field in data:
+                if field == 'approved_by' and data[field] is not None:
+                    # Ubah cara mencari Profile di sini
+                    try:
+                        approved_by_user = Profile.objects.get(pk=data[field])
                         setattr(instance, field, approved_by_user)
-                    else:
-                        setattr(instance, field, data[field])
+                    except Profile.DoesNotExist:
+                        # Kembalikan pesan yang jauh lebih spesifik ke Flutter
+                        return Response(
+                            {"error": f"Profile untuk approved_by dengan ID '{data[field]}' tidak ditemukan di database."}, 
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                else:
+                    setattr(instance, field, data[field])
 
-            instance.save()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+        instance.save()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class SignatureOnLeaveRequestModelViewSet(viewsets.ModelViewSet):
     queryset = SignatureOnLeaveRequest.objects.all()
