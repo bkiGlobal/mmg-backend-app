@@ -523,7 +523,11 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
             allowed_fields = ['start_date', 'end_date', 'reason', 'status', 'photo_proof', 'approved_by', 'approved_date']
             for field in allowed_fields:
                 if field in data:
-                    setattr(instance, field, data[field])
+                    if field == 'approved_by' and data[field] is not None:
+                        approved_by_user = get_object_or_404(Profile, pk=data[field])
+                        setattr(instance, field, approved_by_user)
+                    else:
+                        setattr(instance, field, data[field])
 
             instance.save()
             serializer = self.get_serializer(instance)
