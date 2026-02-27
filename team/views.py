@@ -515,7 +515,7 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
     def update(self, request, *args, **kwargs):# Biarkan ini tetap melempar 404 bawaan jika data utama tidak ada
-        instance = self.get_object()
+        instance = get_object_or_404(LeaveRequest, pk=kwargs['pk'])
         data = request.data.copy()
 
         allowed_fields = ['start_date', 'end_date', 'reason', 'status', 'photo_proof', 'approved_by', 'approved_date']
