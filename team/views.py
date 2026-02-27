@@ -510,8 +510,24 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
                 approved_date=None,
             )
             serializer = self.get_serializer(leave_request)
-            print(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def update(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            data = request.data.copy()
+
+            # Hanya izinkan update pada field tertentu
+            allowed_fields = ['start_date', 'end_date', 'reason', 'status', 'photo_proof', 'approved_by', 'approved_date']
+            for field in allowed_fields:
+                if field in data:
+                    setattr(instance, field, data[field])
+
+            instance.save()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
