@@ -11,6 +11,7 @@ django-encrypted-filefield==0.3.0
 django-import-export==4.3.7
 django-map-widgets==0.5.1
 django-money==3.5.4
+django-admin-rangefilter==0.13.2
 django-unfold==0.80.1
 Django==5.2.1
 djangorestframework-simplejwt==5.5.0
