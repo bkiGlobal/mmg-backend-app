@@ -1,11 +1,94 @@
-{% extends "admin/base_site.html" %} {% load i18n static %} {% block content %}
-<h1>{{ title }}</h1>
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
-  <table>
-    {{ form.as_table }}
-  </table>
-  <input type="submit" value="Upload dan Import" class="default" />
-  <a href="..">Batal</a>
-</form>
+{% extends "admin/base_site.html" %}
+{% load i18n unfold %}
+
+{% block content %}
+    {% url "admin:finance_expenseonproject_changelist" as expense_list_url %}
+
+    {% component "unfold/components/container.html" with class="max-w-4xl" %}
+        <div class="grid gap-6 lg:grid-cols-3">
+            <div class="lg:col-span-2">
+                {% component "unfold/components/card.html" with title="Unggah workbook expense" %}
+                    <form method="post" enctype="multipart/form-data" class="space-y-6">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="bg-red-50 border border-red-200 p-4 rounded-default text-red-700 dark:bg-red-500/10 dark:border-red-800 dark:text-red-400">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        <div class="group{% if form.file.errors %} errors{% endif %}">
+                            <label class="block font-semibold mb-2 text-font-important-light dark:text-font-important-dark" for="{{ form.file.id_for_label }}">
+                                {{ form.file.label }}
+                            </label>
+                            {{ form.file }}
+                            {% for error in form.file.errors %}
+                                <p class="mt-2 text-red-600 text-sm dark:text-red-400">{{ error }}</p>
+                            {% endfor %}
+                            <p class="mmg-file-help mt-2 text-sm">{{ form.file.help_text }}</p>
+                        </div>
+
+                        <div class="bg-base-50 border border-base-200 flex items-start gap-3 p-4 rounded-default dark:bg-white/[.02] dark:border-base-800">
+                            <div class="pt-0.5">{{ form.dry_run }}</div>
+                            <div>
+                                <label class="block cursor-pointer font-semibold text-font-important-light dark:text-font-important-dark" for="{{ form.dry_run.id_for_label }}">
+                                    {{ form.dry_run.label }}
+                                </label>
+                                <p class="mmg-file-help mt-1 text-sm">{{ form.dry_run.help_text }}</p>
+                                {% for error in form.dry_run.errors %}
+                                    <p class="mt-2 text-red-600 text-sm dark:text-red-400">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="border-t border-base-200 flex flex-col gap-3 pt-6 sm:flex-row dark:border-base-800">
+                            {% component "unfold/components/button.html" with submit=1 %}
+                                <span class="material-symbols-outlined md-18">upload_file</span>
+                                {% translate "Upload dan proses" %}
+                            {% endcomponent %}
+
+                            {% component "unfold/components/button.html" with href=expense_list_url variant="default" %}
+                                {% translate "Batal" %}
+                            {% endcomponent %}
+                        </div>
+                    </form>
+                {% endcomponent %}
+            </div>
+
+            <div class="space-y-6">
+                {% component "unfold/components/card.html" with title="Format file" %}
+                    <ol class="list-decimal ml-5 space-y-3 text-sm">
+                        <li>Gunakan file berformat <strong>.xlsx</strong>.</li>
+                        <li>Pastikan tersedia sheet <strong>Expense</strong>, <strong>ExpenseDetail</strong>, dan <strong>ExpenseForMaterial</strong>.</li>
+                        <li>Lakukan validasi terlebih dahulu sebelum import final.</li>
+                    </ol>
+                {% endcomponent %}
+
+                {% if preview_counts %}
+                    {% component "unfold/components/card.html" with title="Hasil validasi" %}
+                        <dl class="space-y-3 text-sm">
+                            <div class="flex justify-between gap-3">
+                                <dt>Expense baru / diperbarui</dt>
+                                <dd class="font-semibold text-primary-700 dark:text-primary-400">
+                                    {{ preview_counts.expense_created }} / {{ preview_counts.expense_updated }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-3">
+                                <dt>Detail baru / diperbarui</dt>
+                                <dd class="font-semibold text-primary-700 dark:text-primary-400">
+                                    {{ preview_counts.detail_created }} / {{ preview_counts.detail_updated }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-3">
+                                <dt>Material baru / diperbarui</dt>
+                                <dd class="font-semibold text-primary-700 dark:text-primary-400">
+                                    {{ preview_counts.material_created }} / {{ preview_counts.material_updated }}
+                                </dd>
+                            </div>
+                        </dl>
+                    {% endcomponent %}
+                {% endif %}
+            </div>
+        </div>
+    {% endcomponent %}
 {% endblock %}

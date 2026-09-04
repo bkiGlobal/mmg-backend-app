@@ -1,0 +1,12 @@
+# Ganti dua path di bawah dengan path absolut pada server.
+MMG_PROJECT_DIR=/absolute/path/to/mmg_backend_app
+MMG_PYTHON_BIN=/absolute/path/to/venv/bin/python
+
+# Entry point keduanya berada di core/crons.py. Management command dipakai
+# agar job juga mudah dijalankan dan diperiksa secara manual.
+
+# Otomasi reminder, progress, inventory, dan attendance setiap pukul 01:00.
+0 1 * * * cd "$MMG_PROJECT_DIR" && "$MMG_PYTHON_BIN" manage.py run_automations >> /tmp/mmg-daily-automation.log 2>&1
+
+# Proses antrean export setiap 5 menit.
+*/5 * * * * cd "$MMG_PROJECT_DIR" && "$MMG_PYTHON_BIN" manage.py process_export_jobs --limit 10 >> /tmp/mmg-export-jobs.log 2>&1

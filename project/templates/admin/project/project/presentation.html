@@ -1,0 +1,248 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link
+        rel="stylesheet"
+        href="{% static 'admin/css/project_showcase.css' %}?v=20260728-2"
+    >
+{% endblock %}
+
+{% block content %}
+    <div class="mmg-presentation">
+        <div class="mmg-presentation-toolbar">
+            <a class="mmg-action mmg-action--secondary" href="{{ project_showcase.change_url }}">
+                <span class="material-symbols-outlined">arrow_back</span>
+                Kembali ke proyek
+            </a>
+            <button class="mmg-action mmg-action--primary" onclick="window.print()" type="button">
+                <span class="material-symbols-outlined">print</span>
+                Cetak / Simpan PDF
+            </button>
+        </div>
+
+        <article class="mmg-presentation-sheet">
+            <header class="mmg-presentation-hero">
+                <div class="mmg-presentation-hero__visual">
+                    {% if project_showcase.preview_url %}
+                        <img
+                            alt="Visual {{ project.project_name }}"
+                            src="{{ project_showcase.preview_url }}"
+                        >
+                    {% else %}
+                        <div class="mmg-blueprint mmg-blueprint--presentation" aria-hidden="true">
+                            <span class="mmg-blueprint__building"></span>
+                            <span class="mmg-blueprint__axis mmg-blueprint__axis--x">A—D</span>
+                            <span class="mmg-blueprint__axis mmg-blueprint__axis--y">01—04</span>
+                        </div>
+                    {% endif %}
+                    <div class="mmg-project-visual__shade"></div>
+                </div>
+                <div class="mmg-presentation-hero__copy">
+                    <div class="mmg-presentation-brand">
+                        <span class="material-symbols-outlined">construction</span>
+                        <div>
+                            <strong>MMG CONSTRUCTION</strong>
+                            <small>Project progress presentation</small>
+                        </div>
+                    </div>
+                    <span class="mmg-status mmg-status--{{ project_showcase.status_tone }}">
+                        {{ project_showcase.status_label }}
+                    </span>
+                    <p class="mmg-presentation-code">{{ project.project_code }}</p>
+                    <h1>{{ project.project_name }}</h1>
+                    <p class="mmg-presentation-lead">
+                        {{ project_showcase.motivation }}
+                    </p>
+                    <div class="mmg-presentation-client">
+                        <span>Disiapkan untuk</span>
+                        <strong>{{ project_showcase.client_name }}</strong>
+                    </div>
+                </div>
+            </header>
+
+            <section class="mmg-presentation-progress">
+                <div
+                    class="mmg-progress-ring mmg-progress-ring--hero"
+                    style="--project-progress: {{ project_showcase.progress }};"
+                >
+                    <strong>{{ project_showcase.progress_label }}</strong>
+                    <small>progress</small>
+                </div>
+                <div class="mmg-presentation-progress__body">
+                    <span class="mmg-showcase-eyebrow">PROGRESS OVERVIEW</span>
+                    <h2>{{ project_showcase.pace_label }}</h2>
+                    <div class="mmg-timeline mmg-timeline--presentation">
+                        <div class="mmg-timeline__track">
+                            <span style="width: {{ project_showcase.progress }}%"></span>
+                            <i style="left: {{ project_showcase.calendar_progress }}%"></i>
+                        </div>
+                        <div class="mmg-timeline__dates">
+                            <span>
+                                Mulai · {{ project.start_date|date:"d M Y" }}
+                            </span>
+                            <span>
+                                Target · {{ project.end_date|date:"d M Y"|default:"Belum ditentukan" }}
+                            </span>
+                        </div>
+                    </div>
+                    <p class="mmg-deadline mmg-deadline--{{ project_showcase.deadline_tone }}">
+                        <span class="material-symbols-outlined">flag</span>
+                        {{ project_showcase.deadline_label }}
+                    </p>
+                </div>
+            </section>
+
+            <section class="mmg-presentation-kpis">
+                <div>
+                    <span class="material-symbols-outlined">description</span>
+                    <strong>
+                        {{ project_showcase.documents_approved }}/{{ project_showcase.documents_total }}
+                    </strong>
+                    <small>Dokumen disetujui</small>
+                </div>
+                <div>
+                    <span class="material-symbols-outlined">architecture</span>
+                    <strong>
+                        {{ project_showcase.drawings_approved }}/{{ project_showcase.drawings_total }}
+                    </strong>
+                    <small>Drawing disetujui</small>
+                </div>
+                <div>
+                    <span class="material-symbols-outlined">groups</span>
+                    <strong>{{ project_showcase.team_members_total }}</strong>
+                    <small>Anggota tim</small>
+                </div>
+                <div>
+                    <span class="material-symbols-outlined">fact_check</span>
+                    <strong>{{ project_showcase.attention_total }}</strong>
+                    <small>Item perlu perhatian</small>
+                </div>
+            </section>
+
+            <section class="mmg-presentation-story">
+                <div>
+                    <span class="mmg-showcase-eyebrow">PROJECT STORY</span>
+                    <h2>Visi dan ruang lingkup</h2>
+                    <div class="mmg-presentation-description">
+                        {{ project.description|linebreaks }}
+                    </div>
+                </div>
+                <aside>
+                    <dl>
+                        <div>
+                            <dt>Lokasi</dt>
+                            <dd>{{ project_showcase.location_name }}</dd>
+                        </div>
+                        <div>
+                            <dt>Tim proyek</dt>
+                            <dd>{{ project_showcase.team_name }}</dd>
+                        </div>
+                        <div>
+                            <dt>Laporan terakhir</dt>
+                            <dd>
+                                {{ project_showcase.latest_report_date|date:"d M Y"|default:"Belum tersedia" }}
+                            </dd>
+                        </div>
+                    </dl>
+                    {% if project_showcase.drawing_url %}
+                        <a
+                            class="mmg-action mmg-action--secondary"
+                            href="{{ project_showcase.drawing_url }}"
+                            target="_blank"
+                        >
+                            <span class="material-symbols-outlined">open_in_new</span>
+                            Buka drawing terbaru
+                        </a>
+                    {% endif %}
+                </aside>
+            </section>
+
+            {% if project_showcase.recent_documents %}
+                <section class="mmg-presentation-documents">
+                    <header class="mmg-presentation-documents__header">
+                        <div class="mmg-presentation-documents__heading">
+                            <span class="mmg-showcase-eyebrow">
+                                DOCUMENT CONTROL
+                            </span>
+                            <h2>Latest issue register</h2>
+                            <p>
+                                Dokumen dan drawing terbaru untuk koordinasi
+                                client, desain, dan pelaksanaan lapangan.
+                            </p>
+                        </div>
+                        <div class="mmg-presentation-documents__count">
+                            <strong>
+                                {{ project_showcase.recent_documents|length|stringformat:"02d" }}
+                            </strong>
+                            <span>file terbaru</span>
+                        </div>
+                    </header>
+
+                    <div class="mmg-presentation-documents__grid">
+                        {% for document in project_showcase.recent_documents %}
+                            <article
+                                class="mmg-presentation-document{% if forloop.first %} mmg-presentation-document--featured{% endif %}"
+                            >
+                                <div class="mmg-presentation-document__top">
+                                    <div class="mmg-presentation-document__identity">
+                                        <span class="mmg-presentation-document__index">
+                                            {{ forloop.counter|stringformat:"02d" }}
+                                        </span>
+                                        <div class="mmg-presentation-document__icon">
+                                            <span class="material-symbols-outlined">
+                                                {{ document.icon }}
+                                            </span>
+                                        </div>
+                                        <span class="mmg-presentation-document__kind">
+                                            {{ document.kind }}
+                                        </span>
+                                    </div>
+                                    <span
+                                        class="mmg-document-status mmg-document-status--{{ document.status_tone }}"
+                                    >
+                                        <i></i>
+                                        {{ document.status_label }}
+                                    </span>
+                                </div>
+
+                                <div class="mmg-presentation-document__body">
+                                    <h3>{{ document.name }}</h3>
+                                    <div class="mmg-presentation-document__number">
+                                        <span>Document no.</span>
+                                        <strong>{{ document.number }}</strong>
+                                    </div>
+                                </div>
+
+                                <footer class="mmg-presentation-document__footer">
+                                    <span>
+                                        <span class="material-symbols-outlined">
+                                            update
+                                        </span>
+                                        {{ document.updated_at|date:"d M Y · H:i" }}
+                                    </span>
+                                    <a
+                                        aria-label="Buka {{ document.name }}"
+                                        href="{% if document.file_url %}{{ document.file_url }}{% else %}{{ document.change_url }}{% endif %}"
+                                        target="_blank"
+                                    >
+                                        Buka file
+                                        <span class="material-symbols-outlined">
+                                            arrow_outward
+                                        </span>
+                                    </a>
+                                </footer>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+
+            <footer class="mmg-presentation-footer">
+                <span>MMG Construction · Project Operations & Finance</span>
+                <span>Diperbarui {% now "d M Y, H:i" %}</span>
+            </footer>
+        </article>
+    </div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "admin/base.html" %}
+{% load i18n unfold %}
+
+{% block title %}Dashboard | {{ site_title }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+    {% component "unfold/components/container.html" %}
+        <div class="mb-8">
+            <h1 class="font-semibold text-2xl text-font-important-light dark:text-font-important-dark">
+                Ringkasan operasional
+            </h1>
+            <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+                KPI proyek, approval, persediaan, dan kehadiran yang perlu perhatian.
+            </p>
+        </div>
+
+        <div class="grid gap-4 mb-8 md:grid-cols-2 xl:grid-cols-3">
+            {% for kpi in kpis %}
+                {% component "unfold/components/card.html" with href=kpi.link icon=kpi.icon %}
+                    <div class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+                        {{ kpi.title }}
+                    </div>
+                    <div class="font-semibold mt-2 text-3xl text-font-important-light dark:text-font-important-dark">
+                        {{ kpi.value }}
+                    </div>
+                {% endcomponent %}
+            {% endfor %}
+        </div>
+
+        <div class="grid gap-6 mb-8 xl:grid-cols-3">
+            <div class="min-w-0 xl:col-span-2">
+                {% component "unfold/components/card.html" with title="Approval yang menunggu" %}
+                    <div class="-m-6 overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-base-50 dark:bg-white/[.02]">
+                                    <th class="px-6 py-3 text-left">Workflow</th>
+                                    <th class="px-6 py-3 text-left">Object</th>
+                                    <th class="px-6 py-3 text-left">Pengaju</th>
+                                    <th class="px-6 py-3 text-left">Diajukan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for approval in recent_approvals %}
+                                    <tr class="border-t border-base-200 dark:border-base-800">
+                                        <td class="px-6 py-3">
+                                            <a class="text-primary-600" href="{% url 'admin:core_approvalrequest_change' approval.pk %}">
+                                                {{ approval.workflow_type }}
+                                            </a>
+                                        </td>
+                                        <td class="px-6 py-3">{{ approval.content_object|default:"-" }}</td>
+                                        <td class="px-6 py-3">{{ approval.requested_by|default:"-" }}</td>
+                                        <td class="px-6 py-3">{{ approval.submitted_at|date:"d M Y H:i" }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td class="px-6 py-6 text-center" colspan="4">
+                                            Tidak ada approval yang menunggu.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endcomponent %}
+            </div>
+
+            {% component "unfold/components/card.html" with title="Antrian operasional" %}
+                <div class="flex flex-col">
+                    {% for item in operations %}
+                        <a class="border-b border-base-200 flex items-center justify-between py-3 last:border-0 dark:border-base-800" href="{{ item.link }}">
+                            <span>{{ item.label }}</span>
+                            <strong class="text-primary-600">{{ item.value }}</strong>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endcomponent %}
+        </div>
+
+        {% component "unfold/components/card.html" with title="Seluruh modul" %}
+            {% include "unfold/helpers/app_list_default.html" %}
+        {% endcomponent %}
+    {% endcomponent %}
+{% endblock %}

@@ -1,0 +1,64 @@
+{% if ledger_overview %}
+<section class="mmg-insight-panel mmg-ledger-overview">
+    <header class="mmg-insight-heading">
+        <div>
+            <span>FINANCIAL SNAPSHOT</span>
+            <h2>Ringkasan transaksi terfilter</h2>
+            <p>Kartu dan grafik mengikuti project, tanggal, serta filter aktif pada tabel.</p>
+        </div>
+        <span class="material-symbols-outlined">monitoring</span>
+    </header>
+
+    <div class="mmg-metric-grid">
+        <article class="is-success">
+            <span class="material-symbols-outlined">south_west</span>
+            <small>Total debit</small>
+            <strong>{{ ledger_overview.debit }}</strong>
+        </article>
+        <article class="is-danger">
+            <span class="material-symbols-outlined">north_east</span>
+            <small>Total credit</small>
+            <strong>{{ ledger_overview.credit }}</strong>
+        </article>
+        <article class="is-gold">
+            <span class="material-symbols-outlined">account_balance_wallet</span>
+            <small>Arus bersih</small>
+            <strong>{{ ledger_overview.net }}</strong>
+        </article>
+        <article>
+            <span class="material-symbols-outlined">receipt_long</span>
+            <small>Transaksi</small>
+            <strong>{{ ledger_overview.transactions }}</strong>
+            <em>{{ ledger_overview.unreconciled }} belum direkonsiliasi</em>
+        </article>
+    </div>
+
+    {% if ledger_overview.groups %}
+        <div class="mmg-ledger-groups">
+            <div class="mmg-insight-subheading">
+                <h3>Arus kas per project / ledger</h3>
+                <span>Maksimal 6 kelompok dengan volume terbesar</span>
+            </div>
+            {% for row in ledger_overview.groups %}
+                <article class="mmg-ledger-row">
+                    <div class="mmg-ledger-row__label">
+                        <strong>{{ row.label }}</strong>
+                        <small>{{ row.description }} · {{ row.transactions }} transaksi</small>
+                    </div>
+                    <div class="mmg-ledger-row__bars">
+                        <div>
+                            <span style="width: {{ row.debit_width }}%"></span>
+                            <small>Debit {{ row.debit }}</small>
+                        </div>
+                        <div class="is-credit">
+                            <span style="width: {{ row.credit_width }}%"></span>
+                            <small>Credit {{ row.credit }}</small>
+                        </div>
+                    </div>
+                    <strong class="mmg-ledger-row__net">{{ row.net }}</strong>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+{% endif %}

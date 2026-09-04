@@ -1,7 +1,9 @@
 from django.utils import timezone
 import os
 import uuid
-from django.db import models
+from decimal import Decimal, ROUND_HALF_UP
+from django.core.exceptions import ValidationError
+from django.db import models, router, transaction
 from core.models import *
 from team.models import Team, Signature, Initial, upload_signature_proof, Profile
 
@@ -137,6 +139,14 @@ def upload_work_method_photo(instance, filename):
     filename = f'WMT_{timestamp_now}{ext}'
     return os.path.join('work_method_photo', filename)
 
+
+def upload_project_presentation(instance, filename):
+    _, ext = os.path.splitext(filename)
+    timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
+    filename = f'PRJ_{timestamp_now}{ext}'
+    return os.path.join('project_presentation', filename)
+
+
 class Project(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True)
@@ -145,108 +155,108 @@ class Project(AuditModel):
     project_code = models.CharField(max_length=255)
     team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='team_project')
     description = models.TextField()
+    presentation_image = models.ImageField(
+        upload_to=upload_project_presentation,
+        null=True,
+        blank=True,
+        help_text=(
+            'Gambar hero/blueprint untuk showcase dan mode presentasi client.'
+        ),
+    )
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
-    progress = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    progress = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        editable=False,
+    )
     project_status = models.CharField(max_length=20, choices=ProjectStatus.choices, default=ProjectStatus.ON_GOING)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=('project_status', '-start_date', 'is_deleted'),
+                name='project_admin_status_idx',
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(progress__gte=0, progress__lte=100),
+                name='project_progress_between_0_100',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(end_date__isnull=True)
+                    | models.Q(end_date__gte=models.F('start_date'))
+                ),
+                name='project_end_on_or_after_start',
+            ),
+        ]
 
     def __str__(self) -> str:
         return f'{self.project_code} {self.project_name}'
-    
-    def delete(self, using=None, keep_parents=False):
-        project_documents = self.project_documents.all()
-        project_drawings = self.project_drawings.all()
-        project_defect = self.project_defect.all()
-        error_on_project = self.error_on_project.all()
-        work_method_project = self.work_method_project.all()
-        project_boqs = self.project_boqs.all()
-        project_payment_requests = self.project_payment_requests.all()
-        project_expense = self.project_expense.all()
-        project_finance_data = self.project_finance_data.all()
-        project_petty_cash = self.project_petty_cash.all()
-        project_material = self.project_material.all()
-        project_tools = self.project_tools.all()
-        project_subcon = self.project_subcon.all()
-        user = get_current_authenticated_user()
-        for document in project_documents:
-            document.is_deleted  = True
-            document.deleted_at  = timezone.now()
-            if user:
-                document.deleted_by = user
-            document.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for drawing in project_drawings:
-            drawing.is_deleted  = True
-            drawing.deleted_at  = timezone.now()
-            if user:
-                drawing.deleted_by = user
-            drawing.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for defect in project_defect:
-            defect.is_deleted  = True
-            defect.deleted_at  = timezone.now()
-            if user:
-                defect.deleted_by = user
-            defect.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for error in error_on_project:
-            error.is_deleted  = True
-            error.deleted_at  = timezone.now()
-            if user:
-                error.deleted_by = user
-            error.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for work_method in work_method_project:
-            work_method.is_deleted  = True
-            work_method.deleted_at  = timezone.now()
-            if user:
-                work_method.deleted_by = user
-            work_method.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for boq in project_boqs:
-            boq.is_deleted  = True
-            boq.deleted_at  = timezone.now()
-            if user:
-                boq.deleted_by = user
-            boq.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for payment_request in project_payment_requests:
-            payment_request.is_deleted  = True
-            payment_request.deleted_at  = timezone.now()
-            if user:
-                payment_request.deleted_by = user
-            payment_request.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for expense in project_expense:
-            expense.is_deleted  = True
-            expense.deleted_at  = timezone.now()
-            if user:
-                expense.deleted_by = user
-            expense.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for finance_data in project_finance_data:
-            finance_data.is_deleted  = True
-            finance_data.deleted_at  = timezone.now()
-            if user:
-                finance_data.deleted_by = user
-            finance_data.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for petty_cash in project_petty_cash:
-            petty_cash.is_deleted  = True
-            petty_cash.deleted_at  = timezone.now()
-            if user:
-                petty_cash.deleted_by = user
-            petty_cash.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for material in project_material:
-            material.is_deleted  = True
-            material.deleted_at  = timezone.now()
-            if user:
-                material.deleted_by = user
-            material.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for tool in project_tools:
-            tool.is_deleted  = True
-            tool.deleted_at  = timezone.now()
-            if user:
-                tool.deleted_by = user
-            tool.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for subcon in project_subcon:
-            subcon.is_deleted  = True
-            subcon.deleted_at  = timezone.now()
-            if user:
-                subcon.deleted_by = user
-            subcon.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.progress is not None and not 0 <= self.progress <= 100:
+            errors['progress'] = 'Progress harus berada antara 0 dan 100.'
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            errors['end_date'] = 'End date tidak boleh sebelum start date.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def recalculate_progress(self, using=None):
+        """Gunakan laporan terbaru setiap BOQ sebagai progress proyek."""
+        database = using or self._state.db or router.db_for_write(
+            type(self), instance=self
+        )
+        with transaction.atomic(using=database):
+            locked = Project.all_objects.using(database).select_for_update().get(
+                pk=self.pk
+            )
+            percentages = []
+            for boq in locked.project_boqs.filter(is_deleted=False).only('pk'):
+                latest = (
+                    boq.reports_boq.filter(is_deleted=False)
+                    .order_by('-report_date', '-progress_number', '-created_at')
+                    .values_list('progress_percentage', flat=True)
+                    .first()
+                )
+                if latest is not None:
+                    percentages.append(Decimal(str(latest)))
+
+            progress = (
+                sum(percentages, Decimal('0')) / len(percentages)
+                if percentages
+                else Decimal('0')
+            ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+            update_values = {'progress': progress}
+            if locked.project_status not in {
+                ProjectStatus.ON_HOLD,
+                ProjectStatus.CANCELLED,
+                ProjectStatus.TENDER,
+            }:
+                if progress >= Decimal('100'):
+                    update_values['project_status'] = ProjectStatus.COMPLETED
+                elif locked.end_date and locked.end_date < timezone.localdate():
+                    update_values['project_status'] = ProjectStatus.DELAYED
+                else:
+                    update_values['project_status'] = ProjectStatus.ON_GOING
+
+            Project.all_objects.using(database).filter(pk=self.pk).update(
+                **update_values
+            )
+            self.progress = progress
+            if 'project_status' in update_values:
+                self.project_status = update_values['project_status']
+        return progress
 
 class Document(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -259,27 +269,34 @@ class Document(AuditModel):
     issue_date = models.DateField(verbose_name="Upload Date")
     due_date = models.DateField(verbose_name="Deadline Date")
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=('project', 'status', '-issue_date', 'is_deleted'),
+                name='project_document_admin_idx',
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(due_date__gte=models.F('issue_date')),
+                name='project_document_due_on_or_after_issue',
+            ),
+        ]
+
     def __str__(self) -> str:
         return f'{self.project.project_name} {self.document_name}'
-    
-    def delete(self, using=None, keep_parents=False):
-        list_versions = self.versions.all()
-        list_signatures = self.document_signatures.all()
-        user = get_current_authenticated_user()
-        for version in list_versions:
-            version.is_deleted  = True
-            version.deleted_at  = timezone.now()
-            if user:
-                version.deleted_by = user
-            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for signature in list_signatures:
-            signature.is_deleted  = True
-            signature.deleted_at  = timezone.now()
-            if user:
-                signature.deleted_by = user
-            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
-    
+
+    def clean(self):
+        super().clean()
+        if self.issue_date and self.due_date and self.due_date < self.issue_date:
+            raise ValidationError(
+                {'due_date': 'Due date tidak boleh sebelum issue date.'}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
     @property
     def project_name(self):
         return self.project.project_name
@@ -331,62 +348,38 @@ class Drawing(AuditModel):
     issue_date = models.DateField(verbose_name="Upload Date")
     due_date = models.DateField(verbose_name="Deadline Date")
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=('project', 'status', '-issue_date', 'is_deleted'),
+                name='project_drawing_admin_idx',
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(due_date__gte=models.F('issue_date')),
+                name='project_drawing_due_on_or_after_issue',
+            ),
+        ]
+
     def __str__(self) -> str:
         return f'{self.project.project_name} {self.document_name}'
+
+    def clean(self):
+        super().clean()
+        if self.issue_date and self.due_date and self.due_date < self.issue_date:
+            raise ValidationError(
+                {'due_date': 'Due date tidak boleh sebelum issue date.'}
+            )
     
     def save(self, *args, **kwargs):
+        self.full_clean()
+        result = super().save(*args, **kwargs)
         if self.status == DocumentStatus.APPROVED:
-            document,is_created = Document.objects.get_or_create(
-                project=self.project,
-                document_type=self.drawing_type,
-                document_name=self.document_name,
-                status=DocumentStatus.APPROVED,
-                approval_required=True,
-                approval_level=ApprovalLevel.LEVEL_1,
-                issue_date=self.issue_date,
-                due_date=self.due_date
-            )
-            version = DrawingVersion.objects.filter(
-                drawing=self,
-                status=DocumentStatus.APPROVED
-            ).first()
-            if is_created and version:
-                DocumentVersion.objects.create(
-                    document=document,
-                    document_number=version.document_number,
-                    document_file=version.drawing_file,
-                    title=version.title,
-                    status=DocumentStatus.APPROVED,
-                    notes=version.notes
-                )
-            elif not is_created and version:
-                # Update existing document version
-                DocumentVersion.objects.filter(document=document).update(
-                    document_number=version.document_number,
-                    document_file=version.drawing_file,
-                    title=version.title,
-                    status=DocumentStatus.APPROVED,
-                    notes=version.notes
-                )
-        return super().save(*args, **kwargs)
-    
-    def delete(self, using=None, keep_parents=False):
-        list_versions = self.drawing_versions.all()
-        list_signatures = self.drawing_signatures.all()
-        user = get_current_authenticated_user()
-        for version in list_versions:
-            version.is_deleted  = True
-            version.deleted_at  = timezone.now()
-            if user:
-                version.deleted_by = user
-            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for signature in list_signatures:
-            signature.is_deleted  = True
-            signature.deleted_at  = timezone.now()
-            if user:
-                signature.deleted_by = user
-            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
+            from project.services import sync_approved_document
+
+            sync_approved_document(self)
+        return result
 
     @property
     def project_name(self):
@@ -406,11 +399,15 @@ class DrawingVersion(AuditModel):
         return f'{self.drawing.document_name} {self.document_number}'
 
     def save(self, *args, **kwargs):
-        # Jika file baru diupload
-        # self.mime_type = detect_mime(self.file) 
-        # if isinstance(self.file, UploadedFile):
-        #     self.mime_type = self.file.content_type  # :contentReference[oaicite:3]{index=3}
-        super().save(*args, **kwargs)
+        result = super().save(*args, **kwargs)
+        if (
+            self.status == DocumentStatus.APPROVED
+            and self.drawing.status == DocumentStatus.APPROVED
+        ):
+            from project.services import sync_approved_document
+
+            sync_approved_document(self.drawing)
+        return result
 
 class SignatureOnDrawing(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -435,24 +432,6 @@ class Defect(AuditModel):
     def __str__(self) -> str:
         return f'Deflect {self.work_title} on {self.project.project_name}'
     
-    def delete(self, using=None, keep_parents=False):
-        list_versions = self.defect_detail.all()
-        list_signatures = self.defect_signature.all()
-        user = get_current_authenticated_user()
-        for version in list_versions:
-            version.is_deleted  = True
-            version.deleted_at  = timezone.now()
-            if user:
-                version.deleted_by = user
-            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for signature in list_signatures:
-            signature.is_deleted  = True
-            signature.deleted_at  = timezone.now()
-            if user:
-                signature.deleted_by = user
-            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
-
 class DefectDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     deflect = models.ForeignKey(Defect, on_delete=models.CASCADE, related_name='defect_detail')
@@ -489,27 +468,39 @@ class ErrorLog(AuditModel):
     periode_end = models.DateTimeField(null=True, blank=True)
     notes = models.TextField()
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(periode_end__isnull=True)
+                    | models.Q(periode_end__gte=models.F('periode_start'))
+                ),
+                name='project_error_end_on_or_after_start',
+            ),
+        ]
+
     def __str__(self) -> str:
         return f'Error Log {self.work_type} on {self.project.project_name}'
-    
-    def delete(self, using=None, keep_parents=False):
-        list_versions = self.error_detail.all()
-        list_signatures = self.error_log_signature.all()
-        user = get_current_authenticated_user()
-        for version in list_versions:
-            version.is_deleted  = True
-            version.deleted_at  = timezone.now()
-            if user:
-                version.deleted_by = user
-            version.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for signature in list_signatures:
-            signature.is_deleted  = True
-            signature.deleted_at  = timezone.now()
-            if user:
-                signature.deleted_by = user
-            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
-    
+
+    def clean(self):
+        super().clean()
+        if (
+            self.periode_end
+            and self.periode_start
+            and self.periode_end < self.periode_start
+        ):
+            raise ValidationError(
+                {
+                    'periode_end': (
+                        'Periode end tidak boleh sebelum periode start.'
+                    )
+                }
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
 class ErrorLogDetail(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     error = models.ForeignKey(ErrorLog, on_delete=models.CASCADE, related_name='error_detail')
@@ -532,10 +523,7 @@ class SignatureOnErrorLog(AuditModel):
     photo_proof = models.ImageField(upload_to=upload_signature_proof)
 
     def __str__(self) -> str:
-        if self.updated_at:
-            return f'Signature {self.signature.user.full_name} on Error {self.error.work_type} at {self.updated_at.strftime("%d-%m-%Y %H:%M:%S")}'
-        else:
-            return f'Signature {self.signature.user.full_name} on Error {self.error.work_type} at {self.created_at.strftime("%d-%m-%Y %H:%M:%S")}'
+        return f'Error detail {self.error.work_type}: {self.descriptions[:50]}'
 
 class Schedule(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -550,22 +538,48 @@ class Schedule(AuditModel):
     notes = models.TextField()
     attachment = models.FileField(upload_to=upload_schedule_attachment)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(duration__gt=0),
+                name='project_schedule_duration_positive',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F('start_date')),
+                name='project_schedule_end_on_or_after_start',
+            ),
+        ]
+
     def __str__(self) -> str:
         try:
             return f'Schedule for {self.boq_item.document_name}'
         except Exception:
             return f'Schedule {self.pk}'
-    
-    def delete(self, using=None, keep_parents=False):
-        list_signatures = self.schedule_signature.all()
-        user = get_current_authenticated_user()
-        for signature in list_signatures:
-            signature.is_deleted  = True
-            signature.deleted_at  = timezone.now()
-            if user:
-                signature.deleted_by = user
-            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.duration is None or self.duration <= 0:
+            errors['duration'] = 'Duration harus lebih dari 0.'
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            errors['end_date'] = 'End date tidak boleh sebelum start date.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if (
+            self.end_date
+            and self.end_date < timezone.localdate()
+            and self.status not in {
+                ScheduleStatusType.COMPLETED,
+                ScheduleStatusType.CANCELLED,
+                ScheduleStatusType.CANCELLED_BY_CLIENT,
+                ScheduleStatusType.ON_HOLD,
+            }
+        ):
+            self.status = ScheduleStatusType.OVERDUE
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 class SignatureOnSchedule(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -589,11 +603,94 @@ class ProgressReport(AuditModel):
     notes = models.TextField()
     attachment = models.FileField(upload_to=upload_weekly_report_attachment, null=True, blank=True)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(progress_number__gt=0),
+                name='project_report_number_positive',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    progress_percentage__gte=0,
+                    progress_percentage__lte=100,
+                ),
+                name='project_report_progress_between_0_100',
+            ),
+        ]
+
     def __str__(self) -> str:
         try:
             return f'Report for {self.boq_item.document_name} in {self.type} {self.progress_number}'
         except Exception:
             return f'Schedule {self.pk}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.progress_number is None or self.progress_number <= 0:
+            errors['progress_number'] = (
+                'Progress number harus lebih dari 0.'
+            )
+        if (
+            self.progress_percentage is None
+            or not 0 <= self.progress_percentage <= 100
+        ):
+            errors['progress_percentage'] = (
+                'Progress percentage harus berada antara 0 dan 100.'
+            )
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        database = kwargs.get('using') or self._state.db or router.db_for_write(
+            type(self), instance=self
+        )
+        kwargs['using'] = database
+        affected_project_ids = {self.boq_item.project_id}
+        if not self._state.adding:
+            previous = ProgressReport.all_objects.using(database).get(pk=self.pk)
+            affected_project_ids.add(previous.boq_item.project_id)
+        self.full_clean()
+        with transaction.atomic(using=database):
+            result = super().save(*args, **kwargs)
+            for project_id in affected_project_ids:
+                Project.all_objects.using(database).get(
+                    pk=project_id
+                ).recalculate_progress(using=database)
+        return result
+
+    def delete(
+        self, using=None, keep_parents=False, user=None, cascade_at=None
+    ):
+        database = using or self._state.db or router.db_for_write(
+            type(self), instance=self
+        )
+        project = self.boq_item.project
+        with transaction.atomic(using=database):
+            result = super().delete(
+                using=database,
+                keep_parents=keep_parents,
+                user=user,
+                cascade_at=cascade_at,
+            )
+            if result[0] and not project.is_deleted:
+                project.recalculate_progress(using=database)
+        return result
+
+    def restore(self, using=None, user=None, cascade_at=None):
+        database = using or self._state.db or router.db_for_write(
+            type(self), instance=self
+        )
+        project = self.boq_item.project
+        with transaction.atomic(using=database):
+            result = super().restore(
+                using=database,
+                user=user,
+                cascade_at=cascade_at,
+            )
+            if not project.is_deleted:
+                project.recalculate_progress(using=database)
+        return result
 
 class WorkMethod(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -606,17 +703,6 @@ class WorkMethod(AuditModel):
     def __str__(self) -> str:
         return f'Work Method for {self.project.project_name}'
     
-    def delete(self, using=None, keep_parents=False):
-        list_signatures = self.work_method_signature.all()
-        user = get_current_authenticated_user()
-        for signature in list_signatures:
-            signature.is_deleted  = True
-            signature.deleted_at  = timezone.now()
-            if user:
-                signature.deleted_by = user
-            signature.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
-
 class SignatureOnWorkMethod(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     work_method = models.ForeignKey(WorkMethod, on_delete=models.CASCADE, related_name='work_method_signature')

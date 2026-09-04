@@ -1,0 +1,326 @@
+/*
+ * Kalender hari libur pada changelist Holiday.
+ *
+ * Di layar lebar kalender tampil sebagai grid tujuh kolom. Di bawah 720px
+ * grid disembunyikan dan digantikan daftar agenda, karena tujuh kolom pada
+ * layar ponsel memaksa scroll horizontal dan menyisakan dua hari terlihat.
+ */
+
+.mmg-holiday-panel {
+    --holiday-border: #e5e7eb;
+    --holiday-muted: #6b7280;
+    --holiday-panel: #fff;
+    --holiday-soft: #f8fafc;
+    --holiday-gold: #c58b16;
+    --holiday-mark: rgb(197 139 22 / 12%);
+    background: var(--holiday-panel);
+    border: 1px solid var(--holiday-border);
+    border-radius: .85rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.dark .mmg-holiday-panel {
+    --holiday-border: #303030;
+    --holiday-muted: #a3a3a3;
+    --holiday-panel: #171717;
+    --holiday-soft: #202020;
+    --holiday-mark: rgb(197 139 22 / 20%);
+}
+
+.mmg-holiday-heading {
+    align-items: center;
+    background:
+        linear-gradient(110deg, rgb(197 139 22 / 10%), transparent 45%),
+        var(--holiday-panel);
+    border-bottom: 1px solid var(--holiday-border);
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 1rem 1.1rem;
+}
+
+.mmg-holiday-heading > div > span {
+    color: var(--holiday-gold);
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+}
+
+.mmg-holiday-heading h2 {
+    color: var(--color-font-important-light);
+    font-size: 1rem;
+    font-weight: 750;
+    margin: .12rem 0 0;
+}
+
+.dark .mmg-holiday-heading h2 {
+    color: var(--color-font-important-dark);
+}
+
+.mmg-holiday-heading p {
+    color: var(--holiday-muted);
+    font-size: .75rem;
+    margin: .25rem 0 0;
+}
+
+.mmg-holiday-heading > .material-symbols-outlined {
+    align-items: center;
+    border: 1px solid var(--holiday-gold);
+    border-radius: .7rem;
+    color: var(--holiday-gold);
+    display: flex;
+    flex: 0 0 auto;
+    height: 2.5rem;
+    justify-content: center;
+    width: 2.5rem;
+}
+
+.mmg-holiday-toolbar {
+    align-items: center;
+    border-bottom: 1px solid var(--holiday-border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    justify-content: space-between;
+    padding: .75rem 1.1rem;
+}
+
+.mmg-holiday-nav,
+.mmg-holiday-sync {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin: 0;
+}
+
+.mmg-holiday-btn {
+    align-items: center;
+    background: var(--holiday-panel);
+    border: 1px solid var(--holiday-border);
+    border-radius: .5rem;
+    color: var(--color-font-important-light);
+    cursor: pointer;
+    display: inline-flex;
+    font-size: .75rem;
+    font-weight: 600;
+    gap: .3rem;
+    padding: .4rem .7rem;
+    text-decoration: none;
+}
+
+.dark .mmg-holiday-btn {
+    color: var(--color-font-important-dark);
+}
+
+.mmg-holiday-btn:hover {
+    border-color: var(--holiday-gold);
+    color: var(--holiday-gold);
+}
+
+.mmg-holiday-btn.is-primary {
+    background: var(--holiday-gold);
+    border-color: var(--holiday-gold);
+    color: #1c1917;
+}
+
+.mmg-holiday-btn.is-primary:hover {
+    color: #1c1917;
+    filter: brightness(1.08);
+}
+
+.mmg-holiday-btn .material-symbols-outlined {
+    font-size: 1rem;
+}
+
+/* ── Grid tujuh kolom (layar lebar) ── */
+
+.mmg-holiday-grid {
+    padding: .8rem 1.1rem 1rem;
+}
+
+.mmg-holiday-weekdays,
+.mmg-holiday-week {
+    display: grid;
+    gap: .3rem;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mmg-holiday-weekdays {
+    color: var(--holiday-muted);
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding-bottom: .35rem;
+    text-transform: uppercase;
+}
+
+.mmg-holiday-weekdays span {
+    text-align: center;
+}
+
+.mmg-holiday-week {
+    margin-bottom: .3rem;
+}
+
+.mmg-holiday-cell {
+    background: var(--holiday-soft);
+    border: 1px solid transparent;
+    border-radius: .5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+    min-height: 4.2rem;
+    overflow: hidden;
+    padding: .35rem .4rem;
+}
+
+.mmg-holiday-cell.is-outside {
+    opacity: .38;
+}
+
+.mmg-holiday-cell.is-weekend {
+    background: rgb(107 114 128 / 10%);
+}
+
+.mmg-holiday-cell.is-today {
+    border-color: var(--holiday-gold);
+}
+
+.mmg-holiday-cell.is-holiday {
+    background: var(--holiday-mark);
+}
+
+.mmg-holiday-daynum {
+    color: var(--color-font-important-light);
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.dark .mmg-holiday-daynum {
+    color: var(--color-font-important-dark);
+}
+
+.mmg-holiday-tag {
+    color: var(--holiday-gold);
+    font-size: .62rem;
+    font-weight: 600;
+    line-height: 1.25;
+    overflow: hidden;
+    text-decoration: none;
+}
+
+.mmg-holiday-tag:hover {
+    text-decoration: underline;
+}
+
+/* ── Agenda (layar sempit) ── */
+
+.mmg-holiday-agenda {
+    display: none;
+    padding: .5rem 1.1rem 1rem;
+}
+
+.mmg-holiday-agenda-row {
+    align-items: baseline;
+    border-bottom: 1px solid var(--holiday-border);
+    color: var(--color-font-important-light);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: .55rem 0;
+    text-decoration: none;
+}
+
+.dark .mmg-holiday-agenda-row {
+    color: var(--color-font-important-dark);
+}
+
+.mmg-holiday-agenda-row:last-child {
+    border-bottom: 0;
+}
+
+.mmg-holiday-agenda-row strong {
+    flex: 0 0 3.4rem;
+    font-size: .78rem;
+}
+
+.mmg-holiday-agenda-row span {
+    flex: 1 1 8rem;
+    font-size: .78rem;
+    min-width: 0;
+}
+
+.mmg-holiday-agenda-row em {
+    border-radius: 999px;
+    font-size: .6rem;
+    font-style: normal;
+    font-weight: 700;
+    padding: .12rem .5rem;
+}
+
+.mmg-holiday-agenda-row em.is-national {
+    background: var(--holiday-mark);
+    color: var(--holiday-gold);
+}
+
+.mmg-holiday-agenda-row em.is-manual {
+    background: rgb(107 114 128 / 15%);
+    color: var(--holiday-muted);
+}
+
+.mmg-holiday-empty {
+    color: var(--holiday-muted);
+    font-size: .78rem;
+    margin: 0;
+}
+
+.mmg-holiday-legend {
+    border-top: 1px solid var(--holiday-border);
+    color: var(--holiday-muted);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: .66rem;
+    gap: .9rem;
+    padding: .6rem 1.1rem;
+}
+
+.mmg-holiday-legend span {
+    align-items: center;
+    display: inline-flex;
+    gap: .3rem;
+}
+
+.mmg-holiday-legend i {
+    border-radius: .25rem;
+    display: inline-block;
+    height: .7rem;
+    width: .7rem;
+}
+
+.mmg-holiday-legend i.is-holiday {
+    background: var(--holiday-gold);
+}
+
+.mmg-holiday-legend i.is-weekend {
+    background: rgb(107 114 128 / 45%);
+}
+
+.mmg-holiday-legend i.is-today {
+    border: 2px solid var(--holiday-gold);
+}
+
+@media (max-width: 720px) {
+    .mmg-holiday-grid {
+        display: none;
+    }
+
+    .mmg-holiday-agenda {
+        display: block;
+    }
+
+    .mmg-holiday-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}

@@ -6,6 +6,8 @@ initial_photo
 signature_proof_photo
 profile_photo
 attendance
+!team/templates/admin/team/attendance/
+!team/templates/admin/team/attendance/*.html
 leave_request
 tool
 material
@@ -24,3 +26,6 @@ id_worker
 finance_proof_photo
 petty_cash_proof_photo
 payment_proof_photo
+__pycache__/
+*.py[cod]
+private_backups/

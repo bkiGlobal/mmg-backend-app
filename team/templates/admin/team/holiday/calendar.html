@@ -1,0 +1,108 @@
+{% load l10n %}
+{% if holiday_calendar %}
+<section class="mmg-holiday-panel">
+    <header class="mmg-holiday-heading">
+        <div>
+            <span>KALENDER LIBUR</span>
+            <h2>{{ holiday_calendar.label }}</h2>
+            <p>
+                {{ holiday_calendar.total }} hari libur pada bulan ini ·
+                {{ holiday_calendar.national_total }} nasional ·
+                {{ holiday_calendar.manual_total }} manual.
+            </p>
+        </div>
+        <span class="material-symbols-outlined">event_available</span>
+    </header>
+
+    <div class="mmg-holiday-toolbar">
+        <div class="mmg-holiday-nav">
+            <a class="mmg-holiday-btn" href="{{ holiday_calendar.previous_url }}"
+               aria-label="Bulan sebelumnya">
+                <span class="material-symbols-outlined">chevron_left</span>
+            </a>
+            <a class="mmg-holiday-btn" href="{{ holiday_calendar.today_url }}">
+                Bulan ini
+            </a>
+            <a class="mmg-holiday-btn" href="{{ holiday_calendar.next_url }}"
+               aria-label="Bulan berikutnya">
+                <span class="material-symbols-outlined">chevron_right</span>
+            </a>
+        </div>
+
+        {% if holiday_calendar.can_sync %}
+            <form class="mmg-holiday-sync" method="post"
+                  action="{{ holiday_calendar.sync_url }}">
+                {% csrf_token %}
+                <input type="hidden" name="year"
+                       value="{{ holiday_calendar.anchor.year|unlocalize }}">
+                <input type="hidden" name="month"
+                       value="{{ holiday_calendar.anchor.month|unlocalize }}">
+                <button type="submit" name="scope" value="month"
+                        class="mmg-holiday-btn is-primary">
+                    <span class="material-symbols-outlined">sync</span>
+                    Tarik bulan ini
+                </button>
+                <button type="submit" name="scope" value="year"
+                        class="mmg-holiday-btn">
+                    Tarik {{ holiday_calendar.anchor.year|unlocalize }}
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="mmg-holiday-grid" role="table"
+         aria-label="Kalender {{ holiday_calendar.label }}">
+        <div class="mmg-holiday-weekdays" role="row">
+            {% for name in holiday_calendar.weekday_names %}
+                <span role="columnheader">{{ name }}</span>
+            {% endfor %}
+        </div>
+        {% for week in holiday_calendar.weeks %}
+            <div class="mmg-holiday-week" role="row">
+                {% for cell in week %}
+                    <div class="mmg-holiday-cell
+                                {% if not cell.in_month %}is-outside{% endif %}
+                                {% if cell.is_weekend %}is-weekend{% endif %}
+                                {% if cell.is_today %}is-today{% endif %}
+                                {% if cell.holiday %}is-holiday{% endif %}"
+                         role="cell">
+                        <span class="mmg-holiday-daynum">{{ cell.day }}</span>
+                        {% if cell.holiday %}
+                            <a class="mmg-holiday-tag"
+                               href="{{ cell.change_url }}"
+                               title="{{ cell.holiday.name }}">
+                                {{ cell.holiday.name }}
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="mmg-holiday-agenda">
+        {% if holiday_calendar.agenda %}
+            {% for holiday in holiday_calendar.agenda %}
+                <a class="mmg-holiday-agenda-row"
+                   href="{% url 'admin:team_holiday_change' holiday.pk %}">
+                    <strong>{{ holiday.date|date:"j M" }}</strong>
+                    <span>{{ holiday.name }}</span>
+                    <em class="is-{{ holiday.source }}">
+                        {{ holiday.get_source_display }}
+                    </em>
+                </a>
+            {% endfor %}
+        {% else %}
+            <p class="mmg-holiday-empty">
+                Tidak ada hari libur tercatat pada bulan ini.
+            </p>
+        {% endif %}
+    </div>
+
+    <footer class="mmg-holiday-legend">
+        <span><i class="is-holiday"></i>Hari libur</span>
+        <span><i class="is-weekend"></i>Akhir pekan</span>
+        <span><i class="is-today"></i>Hari ini</span>
+    </footer>
+</section>
+{% endif %}

@@ -4,22 +4,62 @@ from .models import *
 from .serializers import *
 from rest_framework.response import Response
 from django.db.models import Q
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import check_password
 from django.shortcuts import get_object_or_404
 from django.contrib.gis.geos import Point
 from datetime import timedelta
-from math import radians, cos, sin, asin, sqrt
+from core.permissions import (
+    MANAGEMENT_ROLES,
+    PEOPLE_WRITE_ROLES,
+    PROJECT_WRITE_ROLES,
+    ProjectScopedQuerysetMixin,
+    RoleBasedPermission,
+    accessible_project_ids,
+    has_any_role,
+)
+from team.services import (
+    get_effective_work_policy,
+    validate_attendance_location,
+)
+
+
+def normalize_foreign_keys(payload, field_names):
+    if hasattr(payload, 'getlist'):
+        normalized = {key: payload.get(key) for key in payload.keys()}
+    else:
+        normalized = dict(payload)
+    for field_name in field_names:
+        id_field = f'{field_name}_id'
+        if field_name in normalized and id_field not in normalized:
+            normalized[id_field] = normalized.pop(field_name)
+    return normalized
+
+
+class PeopleAdminViewSet(viewsets.ModelViewSet):
+    permission_classes = [RoleBasedPermission]
+    write_roles = PEOPLE_WRITE_ROLES
+
+
+def is_people_manager(user):
+    return has_any_role(user, PEOPLE_WRITE_ROLES)
     
 class LoginView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
         username_or_email = request.data.get('email_or_username')
         password = request.data.get('password')
+        if not username_or_email or not password:
+            return Response(
+                {'detail': 'Email/username dan password wajib diisi.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Cek apakah input berupa email atau username
         try:
@@ -54,28 +94,45 @@ class PasswordResetView(APIView):
 
 class ChangePasswordAPIView(APIView):
     def post(self, request):
-        user_id = request.data.get('user_id')
         current_password = request.data.get('current_password')
         new_password = request.data.get('new_password')
 
-        try:
-            user = User.objects.get(pk=user_id)
-            if not check_password(current_password, user.password):
-                return Response({'success': False, 'error': 'Current password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
-            user.set_password(new_password)
-            user.save()
-            return Response({'success': True})
-        except User.DoesNotExist:
-            return Response({'success': False, 'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        if not request.user.is_authenticated:
+            return Response(
+                {'success': False, 'error': 'Authentication required.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        user = request.user
+        if not check_password(current_password or '', user.password):
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Current password is incorrect',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not new_password:
+            return Response(
+                {'success': False, 'error': 'New password is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+        return Response({'success': True})
 
-class ProfileModelViewSet(viewsets.ModelViewSet):
+class ProfileModelViewSet(PeopleAdminViewSet):
     queryset = Profile.objects.all()
-            
+    # Semua user terautentikasi dapat memperbarui profilnya sendiri.
+    # Otorisasi object-level diterapkan pada update di bawah.
+    write_roles = None
+
     def get_queryset(self):
         queryset = super().get_queryset().order_by('-created_at')
-        queryset = queryset.select_related('location', 'user') \
-                           .prefetch_related('team_members', 'user_signatures', 'user_initial', 'user_notifications', 
-                                             'user_attendance', 'user_leave_request')
+        queryset = queryset.select_related(
+            'location',
+            'user',
+            'work_policy',
+        )
         if self.action == 'list':
             search_query = self.request.query_params.get('search', None)
             role = self.request.query_params.get('role', None)
@@ -87,7 +144,11 @@ class ProfileModelViewSet(viewsets.ModelViewSet):
             join_date = self.request.query_params.get('join_date', None)
             query = Q()
             if search_query:
-                query = Q(full_name__icontains=search_query) | Q(email__icontains=search_query) | Q(phone_number__icontains=search_query)
+                query = (
+                    Q(full_name__icontains=search_query)
+                    | Q(user__email__icontains=search_query)
+                    | Q(phone_number__icontains=search_query)
+                )
             if role:
                 query &= Q(role__icontains=role)
             if gender:
@@ -96,7 +157,10 @@ class ProfileModelViewSet(viewsets.ModelViewSet):
                 query &= Q(status__icontains=status_)
             if is_employee is not None:
                 is_employee = is_employee.lower() in ['true', '1', 't']
-                query &= ~Q(role__in=['Client', 'client'])
+                if is_employee:
+                    query &= ~Q(role=RoleType.CLIENT)
+                else:
+                    query &= Q(role=RoleType.CLIENT)
             if is_active is not None:
                 is_active = is_active.lower() in ['true', '1', 't']
                 query &= Q(is_active=is_active)
@@ -106,36 +170,102 @@ class ProfileModelViewSet(viewsets.ModelViewSet):
                 query &= Q(join_date=join_date)
             queryset = queryset.filter(query).distinct().order_by('full_name')
         return queryset
-    
+
+    def _is_own_profile_pk(self):
+        profile = getattr(self.request.user, 'profile', None)
+        return bool(
+            profile
+            and str(profile.pk) == str(self.kwargs.get('pk'))
+        )
+
     def get_serializer_class(self):
         if self.action == 'list':
-            return ProfileSimpleSerializer
+            if self.request.user.is_superuser:
+                return ProfileSimpleSerializer
+            return ProfileDirectorySerializer
+        if self.action in {'update', 'partial_update'}:
+            if self.request.user.is_superuser:
+                return ProfileSerializer
+            return ProfileSelfUpdateSerializer
+        if (
+            self.action == 'retrieve'
+            and not self.request.user.is_superuser
+            and not self._is_own_profile_pk()
+        ):
+            return ProfileDirectorySerializer
         return ProfileSerializer
 
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if (
+            not request.user.is_superuser
+            and instance.user_id != request.user.pk
+        ):
+            raise PermissionDenied(
+                'Anda hanya dapat mengubah profile milik sendiri.'
+            )
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if (
+            not request.user.is_superuser
+            and instance.user_id != request.user.pk
+        ):
+            raise PermissionDenied(
+                'Anda hanya dapat mengubah profile milik sendiri.'
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            raise PermissionDenied(
+                'Hanya superuser yang dapat menghapus profile.'
+            )
+        return super().destroy(request, *args, **kwargs)
+
     def create(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            raise PermissionDenied(
+                'Hanya superuser yang dapat membuat profile.'
+            )
         team_members = request.data.get('team_members', [])
-        request.data.pop('team_members', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
+        data = request.data.copy()
+        data.pop('team_members', None)
+        data = normalize_foreign_keys(data, ('location', 'user'))
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
             profile = serializer.save()
             for member in team_members:
-                TeamMember.objects.create(user=profile, **member)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                member_data = normalize_foreign_keys(member, ('team',))
+                member_data['user_id'] = profile.pk
+                child = TeamMemberSerializer(data=member_data)
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(profile).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class TeamModelViewSet(viewsets.ModelViewSet):
+class TeamModelViewSet(PeopleAdminViewSet):
     queryset = Team.objects.all()
     
     def get_queryset(self):
         queryset = super().get_queryset().order_by('-created_at')
         queryset = queryset.prefetch_related('members', )
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(
+                members__user__user=self.request.user,
+                members__is_active=True,
+            )
         if self.action == 'list':
             search_query = self.request.query_params.get('search', None)
             query = Q()
             if search_query:
                 query = Q(name__icontains=search_query) | Q(description__icontains=search_query)
             queryset = queryset.filter(query).distinct()
-            return queryset
+        return queryset
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -144,34 +274,73 @@ class TeamModelViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         members = request.data.get('members', [])
-        request.data.pop('members', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
+        data = request.data.copy()
+        data.pop('members', None)
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
             team = serializer.save()
             for member in members:
-                TeamMember.objects.create(team=team, **member)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                member_data = normalize_foreign_keys(member, ('user',))
+                member_data['team_id'] = team.pk
+                child = TeamMemberSerializer(data=member_data)
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(team).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class TeamMemberModelViewSet(viewsets.ModelViewSet):
+class TeamMemberModelViewSet(PeopleAdminViewSet):
     queryset = TeamMember.objects.all()
     serializer_class = TeamMemberSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('team', 'user')
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(
+                team__members__user__user=self.request.user
+            )
+        return queryset.distinct()
     
-class SignatureModelViewSet(viewsets.ModelViewSet):
+class SignatureModelViewSet(PeopleAdminViewSet):
+    write_roles = None
     queryset = Signature.objects.all()
     serializer_class = SignatureSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('user')
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(user__user=self.request.user)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user.profile)
     
-class InitialModelViewSet(viewsets.ModelViewSet):
+class InitialModelViewSet(PeopleAdminViewSet):
+    write_roles = None
     queryset = Initial.objects.all()
     serializer_class = InitialSerializer
 
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('user')
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(user__user=self.request.user)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user.profile)
+
 class NotificationModelViewSet(viewsets.ModelViewSet):
+    permission_classes = [RoleBasedPermission]
     queryset = Notifications.objects.all()
     serializer_class = NotificationSerializer
     
     def get_queryset(self):
         queryset = super().get_queryset().order_by('-sent_at')
         queryset = queryset.select_related('user', )
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(user__user=self.request.user)
         if self.action == 'list':
             search_query = self.request.query_params.get('search', None)
             is_read = self.request.query_params.get('is_read', None)
@@ -185,9 +354,35 @@ class NotificationModelViewSet(viewsets.ModelViewSet):
             if send_at:
                 query &= Q(sent_at=send_at)
             queryset = queryset.filter(query).distinct()
-            return queryset
+        return queryset
+
+    def perform_create(self, serializer):
+        if not is_people_manager(self.request.user):
+            raise PermissionDenied('Hanya admin yang dapat membuat notifikasi.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not is_people_manager(self.request.user):
+            raise PermissionDenied('Notifikasi tidak dapat dihapus.')
+        instance.delete(user=self.request.user)
+
+    def perform_update(self, serializer):
+        if (
+            not is_people_manager(self.request.user)
+            and serializer.instance.user.user_id != self.request.user.id
+        ):
+            raise PermissionDenied('Notifikasi ini bukan milik Anda.')
+        allowed = {'is_read'}
+        if not is_people_manager(self.request.user):
+            unexpected = set(serializer.validated_data) - allowed
+            if unexpected:
+                raise PermissionDenied(
+                    'User hanya dapat mengubah status baca notifikasi.'
+                )
+        serializer.save()
     
-class SubContractorModelViewSet(viewsets.ModelViewSet):
+class SubContractorModelViewSet(PeopleAdminViewSet):
+    write_roles = PROJECT_WRITE_ROLES
     queryset = SubContractor.objects.all()
     
     def get_queryset(self):
@@ -200,7 +395,7 @@ class SubContractorModelViewSet(viewsets.ModelViewSet):
             if search_query:
                 query = Q(name__icontains=search_query) | Q(locations__name__icontains=search_query) | Q(contact_person__icontains=search_query) | Q(contact_number__icontains=search_query) | Q(email__icontains=search_query) | Q(descriptions__icontains=search_query)
             queryset = queryset.filter(query).distinct()
-            return queryset
+        return queryset
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -209,30 +404,53 @@ class SubContractorModelViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         workers = request.data.get('workers', [])
-        request.data.pop('workers', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
+        data = request.data.copy()
+        data.pop('workers', None)
+        data = normalize_foreign_keys(data, ('locations',))
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
             subcontractor = serializer.save()
             for worker in workers:
-                SubContractorWorker.objects.create(subcon=subcontractor, **worker)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                worker_data = dict(worker)
+                worker_data['subcon'] = subcontractor.pk
+                child = SubContractorWorkerSerializer(data=worker_data)
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(subcontractor).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class SubContractorWorkerModelViewSet(viewsets.ModelViewSet):
+class SubContractorWorkerModelViewSet(PeopleAdminViewSet):
+    write_roles = PROJECT_WRITE_ROLES
     queryset = SubContractorWorker.objects.all()
     serializer_class = SubContractorWorkerSerializer
     
-class SubContractorOnProjectModelViewSet(viewsets.ModelViewSet):
+class SubContractorOnProjectModelViewSet(
+    ProjectScopedQuerysetMixin, PeopleAdminViewSet
+):
+    write_roles = PROJECT_WRITE_ROLES
     queryset = SubContractorOnProject.objects.all()
     serializer_class = SubContractorOnProjectSerializer
 
-class AttendanceModelViewSet(viewsets.ModelViewSet):
+class AttendanceModelViewSet(PeopleAdminViewSet):
+    # Mutasi generik hanya untuk superuser. User biasa menggunakan endpoint
+    # checkin/checkout yang field-nya sengaja dibuat minimum.
+    write_roles = ()
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset().order_by('-created_at')
-        queryset = queryset.select_related('user', )
+        queryset = queryset.select_related(
+            'user',
+            'user__location',
+            'work_policy',
+            'work_policy__office_location',
+        )
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(user__user=self.request.user)
         if self.action == 'list':
             search_query = self.request.query_params.get('search', None)
             user = self.request.query_params.get('user', None)
@@ -263,7 +481,7 @@ class AttendanceModelViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(user=user).order_by('-date')
                 else:
                     queryset = queryset.filter(user=user, date__gte=start_of_week, date__lte=end_of_week).order_by('-date')
-            return queryset
+        return queryset
         
 def parse_geo_json(geo_data):
     """
@@ -288,174 +506,226 @@ def parse_geo_json(geo_data):
         return None
     return None
 
-def calculate_distance_meters(coords_1, coords_2):
-    """
-    Menghitung jarak antara dua titik (Latitude, Longitude).
-    Input: Tuple (latitude, longitude) dalam desimal.
-    Output: Jarak dalam METER (float).
-    """
-    # 1. Pastikan input valid
-    if not coords_1 or not coords_2:
-        return 0.0
-
-    # 2. Unpack tuple (Pastikan urutan Lat, Long konsisten!)
-    lat1, lon1 = coords_1
-    lat2, lon2 = coords_2
-
-    # 3. Konversi ke Radians (Wajib untuk rumus trigonometri)
-    lat1_rad = radians(lat1)
-    lon1_rad = radians(lon1)
-    lat2_rad = radians(lat2)
-    lon2_rad = radians(lon2)
-
-    # 4. Rumus Haversine (Delta)
-    dlon = lon2_rad - lon1_rad
-    dlat = lat2_rad - lat1_rad
-
-    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
-    c = 2 * asin(sqrt(a))
-
-    # 5. Radius Bumi (R) = 6371 km = 6,371,000 meter
-    R_METERS = 6371000 
-
-    return c * R_METERS
-
-def validate_location(label, profile, project, latitude, longitude , radius=400):
-    """Validasi apakah lokasi user berada dalam radius tertentu dari kantor."""
-    if not latitude or not longitude:
-        return False
-    if label == 'Work From Home':
-        office_coords = (profile.location.latitude, profile.location.longitude)
-    elif label == 'Client Site' and project is not None:
-        office_coords = (project.location.latitude, project.location.longitude)
-    else:
-        office_coords = (-8.653866713645598, 115.26167582162132)
-    user_coords = (latitude, longitude)
-    distance = calculate_distance_meters(user_coords, office_coords)
-    print(distance)
-    print(label)
-    return distance <= radius
+def parse_location_accuracy(raw_accuracy):
+    if raw_accuracy in (None, ''):
+        return None
+    try:
+        accuracy = float(raw_accuracy)
+    except (TypeError, ValueError):
+        raise DjangoValidationError(
+            'Akurasi GPS harus berupa angka dalam meter.'
+        )
+    if accuracy < 0:
+        raise DjangoValidationError(
+            'Akurasi GPS tidak boleh bernilai negatif.'
+        )
+    return accuracy
 
 class CheckInView(APIView):
     def post(self, request):
-        raw_user_data = request.data.get('user')
-        raw_check_in_location_label = request.data.get('check_in_location_label')
-        project_id = request.data.get('project_id')
         try:
-            # Jika user dikirim sebagai JSON String '{"id": "...", "name": ...}'
-            if isinstance(raw_user_data, str):
-                user_data = json.loads(raw_user_data)
-                user_id = user_data['id']
-            else:
-                # Fallback jika ternyata sudah berbentuk dict (jarang terjadi di multipart)
-                user_id = raw_user_data['id']
-                
-            profile = get_object_or_404(Profile, pk=user_id)
-
-        except (ValueError, KeyError, TypeError):
-             return Response({"error": "Data user tidak valid"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        raw_location = request.data.get('check_in_location')
-        location_point = parse_geo_json(raw_location)
-
-        if not location_point:
+            profile = request.user.profile
+        except Profile.DoesNotExist:
             return Response(
-                {"error": "Format lokasi tidak valid. Pastikan mengirim GeoJSON."}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Profile user tidak ditemukan."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        if project_id and project_id != "null":
-            project = get_object_or_404(Project, pk=project_id)
-        else:
-            project = None
 
-        if not validate_location(raw_check_in_location_label, profile, project, location_point.y, location_point.x):
-            return Response({"error": "Anda berada di luar area kantor!"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        photo = request.FILES.get('photo_check_in') # Sesuaikan key dengan frontend
-        now = timezone.localtime()
-        today = now.date()
+        payload = request.data.copy()
+        if not payload.get('work_policy') and payload.get('work_policy_id'):
+            payload['work_policy'] = payload.get('work_policy_id')
+        serializer = AttendanceCheckInSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        work_policy = serializer.validated_data['work_policy']
+        work_mode = serializer.validated_data['work_mode']
+        photo = serializer.validated_data['photo_check_in']
 
-        if Attendance.objects.filter(user=profile, date=today).exists():
-            return Response({"error": "Anda sudah check-in hari ini."}, status=status.HTTP_400_BAD_REQUEST)
+        raw_location = request.data.get('check_in_location')
+        if not raw_location:
+            return Response(
+                {
+                    'error': (
+                        'Lokasi GPS terkini wajib dikirim saat check-in.'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        location_point = parse_geo_json(raw_location)
+        if location_point is None:
+            return Response(
+                {'error': 'Format GPS check-in tidak valid.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            location_result = validate_attendance_location(
+                profile,
+                work_policy,
+                work_mode,
+                location_point,
+            )
+            location_accuracy = parse_location_accuracy(
+                request.data.get('check_in_accuracy_meters')
+            )
+        except DjangoValidationError as exc:
+            return Response(
+                {'error': exc.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        attendance = Attendance.objects.create(
-            user=profile,
-            check_in=now,
-            check_in_location=location_point, # Simpan objek Point
-            check_in_location_label=raw_check_in_location_label,
-            photo_check_in=photo
-        )
+        now = timezone.now()
+        today = timezone.localdate()
+
+        try:
+            with transaction.atomic():
+                Profile.objects.select_for_update().get(pk=profile.pk)
+                attendance = Attendance.objects.select_for_update().filter(
+                    user=profile, date=today
+                ).first()
+                if attendance and attendance.check_in:
+                    return Response(
+                        {"error": "Anda sudah check-in hari ini."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if attendance and attendance.status in {
+                    AttendanceStatus.LEAVE,
+                    AttendanceStatus.HOLYDAY,
+                }:
+                    return Response(
+                        {
+                            'error': (
+                                'Absensi hari ini berstatus cuti/libur. '
+                                'Hubungi superuser untuk koreksi.'
+                            ),
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                values = {
+                    'check_in': now,
+                    'check_in_location': location_result.current_point,
+                    'check_in_location_label': location_result.label,
+                    'check_in_accuracy_meters': location_accuracy,
+                    'check_in_distance_meters': (
+                        location_result.distance_meters
+                    ),
+                    'photo_check_in': photo,
+                    'work_policy': work_policy,
+                    'work_mode': work_mode,
+                    'status_override': None,
+                    'status_override_reason': '',
+                }
+                if attendance:
+                    for field_name, value in values.items():
+                        setattr(attendance, field_name, value)
+                    attendance.save()
+                else:
+                    attendance = Attendance.objects.create(
+                        user=profile,
+                        date=today,
+                        **values,
+                    )
+        except IntegrityError:
+            return Response(
+                {"error": "Anda sudah check-in hari ini."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(AttendanceSerializer(attendance).data, status=status.HTTP_201_CREATED)
 
 class CheckOutView(APIView):
     def post(self, request):
-        raw_user_data = request.data.get('user')
-        raw_check_out_location_label = request.data.get('check_out_location_label')
-        project_id = request.data.get('project_id')
         try:
-            # Jika user dikirim sebagai JSON String '{"id": "...", "name": ...}'
-            if isinstance(raw_user_data, str):
-                user_data = json.loads(raw_user_data)
-                user_id = user_data['id']
-            else:
-                # Fallback jika ternyata sudah berbentuk dict (jarang terjadi di multipart)
-                user_id = raw_user_data['id']
-                
-            profile = get_object_or_404(Profile, pk=user_id)
-
-        except (ValueError, KeyError, TypeError):
-             return Response({"error": "Data user tidak valid"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        raw_location = request.data.get('check_out_location')
-        location_point = parse_geo_json(raw_location)
-
-        if not location_point:
+            profile = request.user.profile
+        except Profile.DoesNotExist:
             return Response(
-                {"error": "Format lokasi tidak valid."}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Profile user tidak ditemukan."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        if project_id and project_id != "null":
-            project = get_object_or_404(Project, pk=project_id)
-        else:
-            project = None
 
-        if not validate_location(raw_check_out_location_label, profile, project, location_point.y, location_point.x):
-            return Response({"error": "Anda berada di luar area kantor!"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = AttendanceCheckOutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        photo = serializer.validated_data['photo_check_out']
 
-        photo = request.FILES.get('photo_check_out')
+        now = timezone.now()
+        today = timezone.localdate()
 
-        now = timezone.localtime()
-        today = now.date()
+        with transaction.atomic():
+            try:
+                attendance = Attendance.objects.select_for_update().get(
+                    user=profile,
+                    date=today,
+                )
+            except Attendance.DoesNotExist:
+                return Response(
+                    {"error": "Anda belum check-in hari ini."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        try:
-            attendance = Attendance.objects.get(user=profile, date=today)
-        except Attendance.DoesNotExist:
-            return Response({"error": "Anda belum check-in hari ini."}, status=status.HTTP_400_BAD_REQUEST)
+            if attendance.check_out:
+                return Response(
+                    {"error": "Anda sudah check-out hari ini."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        if attendance.check_out:
-            return Response({"error": "Anda sudah check-out hari ini."}, status=status.HTTP_400_BAD_REQUEST)
+            work_policy = (
+                attendance.work_policy
+                or get_effective_work_policy(profile)
+            )
+            raw_location = request.data.get('check_out_location')
+            if not raw_location:
+                return Response(
+                    {
+                        'error': (
+                            'Lokasi GPS terkini wajib dikirim saat '
+                            'check-out.'
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            location_point = parse_geo_json(raw_location)
+            if location_point is None:
+                return Response(
+                    {'error': 'Format GPS check-out tidak valid.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                location_result = validate_attendance_location(
+                    profile,
+                    work_policy,
+                    attendance.work_mode,
+                    location_point,
+                )
+                location_accuracy = parse_location_accuracy(
+                    request.data.get('check_out_accuracy_meters')
+                )
+            except DjangoValidationError as exc:
+                return Response(
+                    {'error': exc.messages[0]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        # Update data check-out
-        attendance.check_out = now
-        attendance.check_out_location = location_point # Simpan objek Point
-        attendance.check_out_location_label = raw_check_out_location_label
-        attendance.photo_check_out = photo
-        
-        # Logic status (Ontime/Late/Early) ditangani otomatis oleh method save() di Model
-        attendance.save()
+            attendance.check_out = now
+            attendance.check_out_location = location_result.current_point
+            attendance.check_out_location_label = location_result.label
+            attendance.check_out_accuracy_meters = location_accuracy
+            attendance.check_out_distance_meters = (
+                location_result.distance_meters
+            )
+            attendance.photo_check_out = photo
+            attendance.save()
 
         return Response(AttendanceSerializer(attendance).data, status=status.HTTP_201_CREATED)
     
 class LeaveRequestModelViewSet(viewsets.ModelViewSet):
+    permission_classes = [RoleBasedPermission]
     queryset = LeaveRequest.objects.all()
     
     def get_queryset(self):
         queryset = super().get_queryset().order_by('-created_at')
         queryset = queryset.select_related('user', 'approved_by') \
                            .prefetch_related('leave_request_signatures', )
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(user__user=self.request.user)
         if self.action == 'list':
             search_query = self.request.query_params.get('search', None)
             user = self.request.query_params.get('user', None)
@@ -480,7 +750,7 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
             if approved_by:
                 query &= Q(approved_by__id=approved_by)
             queryset = queryset.filter(query).distinct()
-            return queryset
+        return queryset
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -488,62 +758,84 @@ class LeaveRequestModelViewSet(viewsets.ModelViewSet):
         return LeaveRequestSerializer
     
     def create(self, request, *args, **kwargs):
-        try:
-            data = request.data.copy()
-            user = get_object_or_404(Profile, pk=data.get('user'))
-
-            audit_fields = [
-                'created_at', 'updated_at', 'deleted_at', 
-                'created_by', 'updated_by', 'deleted_by', 'is_deleted'
-            ]
-            for field in audit_fields:
-                data.pop(field, None) # Hapus key audit jika ada di dalam request
-
-            leave_request = LeaveRequest.objects.create(
-                user=user,
-                start_date=data.get('start_date'),
-                end_date=data.get('end_date'),
-                reason=data.get('reason'),
-                status=data.get('status', 'Pending'),
-                photo_proof=data.get('photo_proof'),
-                approved_by=None,
-                approved_date=None,
-            )
-            serializer = self.get_serializer(leave_request)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-    def update(self, request, *args, **kwargs):# Biarkan ini tetap melempar 404 bawaan jika data utama tidak ada
-        instance = get_object_or_404(LeaveRequest, pk=kwargs['pk'])
+        signatures = request.data.get('leave_request_signatures', [])
         data = request.data.copy()
+        data.pop('leave_request_signatures', None)
+        if not is_people_manager(request.user):
+            data['user_id'] = request.user.profile.pk
+            data.pop('user', None)
+            data.pop('approved_by', None)
+            data.pop('approved_by_id', None)
+            data['status'] = LeaveStatus.PENDING
+        data = normalize_foreign_keys(data, ('user', 'approved_by'))
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
 
-        allowed_fields = ['start_date', 'end_date', 'reason', 'status', 'photo_proof', 'approved_by', 'approved_date']
+        with transaction.atomic():
+            leave_request = serializer.save()
+            for signature in signatures:
+                signature_data = normalize_foreign_keys(
+                    signature, ('signature',)
+                )
+                signature_data['leave_request'] = leave_request.pk
+                child = SignatureOnLeaveRequestSerializer(
+                    data=signature_data
+                )
+                child.is_valid(raise_exception=True)
+                child.save()
+
+        return Response(
+            self.get_serializer(leave_request).data,
+            status=status.HTTP_201_CREATED,
+        )
         
-        for field in allowed_fields:
-            if field in data:
-                if field == 'approved_by' and data[field] is not None:
-                    # Ubah cara mencari Profile di sini
-                    try:
-                        approved_by_user = Profile.objects.get(pk=data[field])
-                        setattr(instance, field, approved_by_user)
-                    except Profile.DoesNotExist:
-                        # Kembalikan pesan yang jauh lebih spesifik ke Flutter
-                        return Response(
-                            {"error": f"Profile untuk approved_by dengan ID '{data[field]}' tidak ditemukan di database."}, 
-                            status=status.HTTP_404_NOT_FOUND
-                        )
-                else:
-                    setattr(instance, field, data[field])
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = request.data.copy()
+        if not is_people_manager(request.user):
+            for field in (
+                'user',
+                'user_id',
+                'status',
+                'approved_by',
+                'approved_by_id',
+                'approved_date',
+            ):
+                data.pop(field, None)
+        data = normalize_foreign_keys(data, ('user', 'approved_by'))
+        serializer = self.get_serializer(
+            instance,
+            data=data,
+            partial=kwargs.pop('partial', False),
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
-        instance.save()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-class SignatureOnLeaveRequestModelViewSet(viewsets.ModelViewSet):
+class SignatureOnLeaveRequestModelViewSet(PeopleAdminViewSet):
     queryset = SignatureOnLeaveRequest.objects.all()
     serializer_class = SignatureOnLeaveRequestSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related(
+            'leave_request__user', 'signature'
+        )
+        if not is_people_manager(self.request.user):
+            queryset = queryset.filter(
+                leave_request__user__user=self.request.user
+            )
+        return queryset
     
-class AnnouncementModelViewSet(viewsets.ModelViewSet):
+class AnnouncementModelViewSet(PeopleAdminViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
+
+
+class WorkPolicyModelViewSet(PeopleAdminViewSet):
+    queryset = WorkPolicy.objects.all().order_by('name')
+    serializer_class = WorkPolicySerializer
+
+
+class HolidayModelViewSet(PeopleAdminViewSet):
+    queryset = Holiday.objects.all().order_by('-date')
+    serializer_class = HolidaySerializer

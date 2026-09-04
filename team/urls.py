@@ -100,8 +100,8 @@ urlpatterns = [
         'put': 'update',
         'delete': 'destroy'
     }), name='attendance_detail'),
-    path('checkin/', CheckInView.as_view(), name='checkin'), #pass employee, branch, langitude, latitude, and photo
-    path('checkout/', CheckOutView.as_view(), name='checkout'), #pass employee, branch, langitude, and latitude
+    path('checkin/', CheckInView.as_view(), name='checkin'),
+    path('checkout/', CheckOutView.as_view(), name='checkout'),
     path('leave-request/', LeaveRequestModelViewSet.as_view({
         'get': 'list',
         'post': 'create'
@@ -129,4 +129,24 @@ urlpatterns = [
         'put': 'update',
         'delete': 'destroy'
     }), name='sannouncement_detail'),
+    path('work-policy/', WorkPolicyModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create',
+    }), name='work_policy_list'),
+    path('work-policy/<str:pk>/', WorkPolicyModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'patch': 'partial_update',
+        'delete': 'destroy',
+    }), name='work_policy_detail'),
+    path('holiday/', HolidayModelViewSet.as_view({
+        'get': 'list',
+        'post': 'create',
+    }), name='holiday_list'),
+    path('holiday/<str:pk>/', HolidayModelViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'patch': 'partial_update',
+        'delete': 'destroy',
+    }), name='holiday_detail'),
 ]

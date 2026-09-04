@@ -9,8 +9,23 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError
 import logging
 from rest_framework.permissions import AllowAny
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import PermissionDenied, ValidationError
+from core.permissions import (
+    APPROVAL_ROLES,
+    MANAGEMENT_ROLES,
+    RoleBasedPermission,
+    accessible_project_ids,
+    has_any_role,
+)
+from core.workflows import decide_approval, submit_for_approval
 
 logger = logging.getLogger(__name__)
+
+
+class LookupAPIView(APIView):
+    permission_classes = [RoleBasedPermission]
+    write_roles = MANAGEMENT_ROLES
 
 class CustomTokenRefreshView(TokenRefreshView):
     """
@@ -35,7 +50,7 @@ class CustomTokenRefreshView(TokenRefreshView):
         # Jika sukses, kembalikan response standar
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
-class LocationAPIView(APIView):
+class LocationAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             location = get_object_or_404(Location, pk=pk)
@@ -73,7 +88,7 @@ class LocationAPIView(APIView):
         location.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class ExpenseCategoryAPIView(APIView):
+class ExpenseCategoryAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             category = get_object_or_404(ExpenseCategory, pk=pk)
@@ -84,8 +99,7 @@ class ExpenseCategoryAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = ExpenseCategorySerializer(categories, many=True)
             return Response(serializer.data)
@@ -110,7 +124,7 @@ class ExpenseCategoryAPIView(APIView):
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class IncomeCategoryAPIView(APIView):
+class IncomeCategoryAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             category = get_object_or_404(IncomeCategory, pk=pk)
@@ -121,8 +135,7 @@ class IncomeCategoryAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = IncomeCategorySerializer(categories, many=True)
             return Response(serializer.data)
@@ -147,7 +160,7 @@ class IncomeCategoryAPIView(APIView):
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-class DocumentTypeAPIView(APIView):
+class DocumentTypeAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             doc_type = get_object_or_404(DocumentType, pk=pk)
@@ -158,8 +171,7 @@ class DocumentTypeAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 doc_types = doc_types.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = DocumentTypeSerializer(doc_types, many=True)
             return Response(serializer.data)
@@ -184,7 +196,7 @@ class DocumentTypeAPIView(APIView):
         doc_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class WorkTypeAPIView(APIView):
+class WorkTypeAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             work_type = get_object_or_404(WorkType, pk=pk)
@@ -195,8 +207,7 @@ class WorkTypeAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 work_types = work_types.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = WorkTypeSerializer(work_types, many=True)
             return Response(serializer.data)
@@ -221,7 +232,7 @@ class WorkTypeAPIView(APIView):
         work_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-class MaterialCategoryAPIView(APIView):
+class MaterialCategoryAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             category = get_object_or_404(MaterialCategory, pk=pk)
@@ -232,8 +243,7 @@ class MaterialCategoryAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = MaterialCategorySerializer(categories, many=True)
             return Response(serializer.data)
@@ -258,10 +268,10 @@ class MaterialCategoryAPIView(APIView):
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class ToolCategoryAPIView(APIView):
+class ToolCategoryAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
-            category = get_object_or_404(ToolCategory, pk=pk, isq_deleted=False)
+            category = get_object_or_404(ToolCategory, pk=pk)
             serializer = ToolCategorySerializer(category)
             return Response(serializer.data)
         else:
@@ -269,8 +279,7 @@ class ToolCategoryAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 categories = categories.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = ToolCategorySerializer(categories, many=True)
             return Response(serializer.data)
@@ -295,7 +304,7 @@ class ToolCategoryAPIView(APIView):
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class UnitTypeAPIView(APIView):
+class UnitTypeAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             unit_type = get_object_or_404(UnitType, pk=pk)
@@ -306,8 +315,7 @@ class UnitTypeAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 unit_types = unit_types.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = UnitTypeSerializer(unit_types, many=True)
             return Response(serializer.data)
@@ -332,7 +340,7 @@ class UnitTypeAPIView(APIView):
         unit_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class BrandAPIView(APIView):
+class BrandAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             brand = get_object_or_404(Brand, pk=pk)
@@ -343,8 +351,7 @@ class BrandAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 brands = brands.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = BrandSerializer(brands, many=True)
             return Response(serializer.data)
@@ -369,7 +376,7 @@ class BrandAPIView(APIView):
         brand.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class FinanceTypeAPIView(APIView):
+class FinanceTypeAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             finance_type = get_object_or_404(FinanceType, pk=pk)
@@ -380,8 +387,7 @@ class FinanceTypeAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 finance_types = finance_types.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = FinanceTypeSerializer(finance_types, many=True)
             return Response(serializer.data)
@@ -406,7 +412,7 @@ class FinanceTypeAPIView(APIView):
         finance_type.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-class PaymentViaAPIView(APIView):
+class PaymentViaAPIView(LookupAPIView):
     def get(self, request, pk=None):
         if pk:
             payment_via = get_object_or_404(PaymentVia, pk=pk)
@@ -417,8 +423,7 @@ class PaymentViaAPIView(APIView):
             search_query = request.query_params.get('search', None)
             if search_query:
                 payment_vias = payment_vias.filter(
-                    Q(name__icontains=search_query) |
-                    Q(description__icontains=search_query)
+                    Q(name__icontains=search_query)
                 )
             serializer = PaymentViaSerializer(payment_vias, many=True)
             return Response(serializer.data)
@@ -442,3 +447,164 @@ class PaymentViaAPIView(APIView):
         payment_via = get_object_or_404(PaymentVia, pk=pk)
         payment_via.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+APPROVAL_TARGETS = {
+    'finance.billofquantity': ('Bill of Quantity', 'qs,cfo'),
+    'finance.paymentrequest': ('Payment Request', 'cfo,finance_admin'),
+    'project.document': ('Project Document', 'pm,project_admin'),
+    'project.drawing': ('Drawing', 'pm,architect'),
+    'team.leaverequest': ('Leave Request', 'admin,ceo,project_admin'),
+    'inventory.materialonproject': (
+        'Material Approval',
+        'logistic,pm,project_admin',
+    ),
+    'inventory.purchaserequest': (
+        'Purchase Request',
+        'logistic,cfo,pm',
+    ),
+}
+
+
+def _target_project_id(target):
+    if target._meta.label_lower == 'team.leaverequest':
+        return None
+    if hasattr(target, 'project_id'):
+        return target.project_id
+    if hasattr(target, 'boq_item'):
+        return target.boq_item.project_id
+    return None
+
+
+def _can_access_approval_target(user, target):
+    if has_any_role(user, MANAGEMENT_ROLES):
+        return True
+    label = target._meta.label_lower
+    if label == 'team.leaverequest':
+        return (
+            target.user.user_id == user.id
+            or has_any_role(user, {'project_admin'})
+        )
+    if label.startswith('finance.') and has_any_role(
+        user, {'cfo', 'finance_admin'}
+    ):
+        return True
+    if label.startswith('inventory.') and has_any_role(
+        user, {'logistic'}
+    ):
+        return True
+    project_id = _target_project_id(target)
+    if project_id is None:
+        return False
+    allowed_ids = accessible_project_ids(user)
+    return allowed_ids is None or project_id in set(allowed_ids)
+
+
+class ApprovalQueueAPIView(APIView):
+    def get(self, request):
+        queryset = ApprovalRequest.objects.select_related(
+            'content_type',
+            'requested_by',
+            'decided_by',
+        ).prefetch_related('events')
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if not has_any_role(request.user, APPROVAL_ROLES):
+            queryset = queryset.filter(requested_by=request.user)
+        elif not has_any_role(request.user, MANAGEMENT_ROLES):
+            from core.workflows import user_can_decide
+
+            visible_ids = []
+            for approval in queryset:
+                target = approval.content_object
+                if (
+                    approval.requested_by_id == request.user.id
+                    or (
+                        target is not None
+                        and user_can_decide(request.user, approval)
+                        and _can_access_approval_target(
+                            request.user, target
+                        )
+                    )
+                ):
+                    visible_ids.append(approval.pk)
+            queryset = queryset.filter(pk__in=visible_ids)
+        return Response(
+            ApprovalRequestSerializer(queryset, many=True).data
+        )
+
+    def post(self, request):
+        app_label = request.data.get('app_label')
+        model = request.data.get('model')
+        object_id = request.data.get('object_id')
+        label = f'{app_label}.{model}'.lower()
+        configuration = APPROVAL_TARGETS.get(label)
+        if not configuration:
+            return Response(
+                {'detail': 'Tipe objek tidak mendukung approval.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        content_type = get_object_or_404(
+            ContentType,
+            app_label=app_label,
+            model=model.lower(),
+        )
+        target = get_object_or_404(
+            content_type.model_class().objects.all(),
+            pk=object_id,
+        )
+        if not _can_access_approval_target(request.user, target):
+            raise PermissionDenied('Anda tidak dapat mengakses objek ini.')
+        try:
+            approval = submit_for_approval(
+                target,
+                request.user,
+                workflow_type=configuration[0],
+                required_role=configuration[1],
+                comment=request.data.get('comment', ''),
+            )
+        except ValidationError as exc:
+            detail = (
+                exc.message_dict
+                if hasattr(exc, 'message_dict')
+                else exc.messages
+            )
+            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            ApprovalRequestSerializer(approval).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ApprovalDecisionAPIView(APIView):
+    def post(self, request, pk, decision):
+        approval = get_object_or_404(ApprovalRequest, pk=pk)
+        if decision not in {'approve', 'reject'}:
+            return Response(
+                {'detail': 'Decision harus approve atau reject.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target = approval.content_object
+        if (
+            target is None
+            or not _can_access_approval_target(request.user, target)
+        ):
+            raise PermissionDenied(
+                'Anda tidak dapat mengakses objek approval ini.'
+            )
+        try:
+            approval = decide_approval(
+                approval,
+                request.user,
+                approve=decision == 'approve',
+                comment=request.data.get('comment', ''),
+            )
+        except ValidationError as exc:
+            detail = (
+                exc.message_dict
+                if hasattr(exc, 'message_dict')
+                else exc.messages
+            )
+            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ApprovalRequestSerializer(approval).data)

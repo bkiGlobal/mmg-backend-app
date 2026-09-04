@@ -1,0 +1,55 @@
+{% if progress_overview.projects %}
+<section class="mmg-insight-panel mmg-progress-overview">
+    <header class="mmg-insight-heading">
+        <div>
+            <span>PROJECT PERFORMANCE</span>
+            <h2>Progres aktual vs timeline</h2>
+            <p>Perbandingan progres project dengan persentase waktu yang telah berjalan per {{ progress_overview.today|date:"d M Y" }}.</p>
+        </div>
+        <span class="material-symbols-outlined">ssid_chart</span>
+    </header>
+
+    <div class="mmg-progress-projects">
+        {% for item in progress_overview.projects %}
+            <article class="is-{{ item.tone }}">
+                <div class="mmg-progress-project__heading">
+                    <div>
+                        <strong>{{ item.project.project_code }}</strong>
+                        <small>{{ item.project.project_name }}</small>
+                    </div>
+                    {% if item.variance is not None %}
+                        <span>
+                            {% if item.variance > 0 %}+{% endif %}{{ item.variance }}%
+                            <small>variance</small>
+                        </span>
+                    {% else %}
+                        <span><small>Timeline terbuka</small></span>
+                    {% endif %}
+                </div>
+                <div class="mmg-progress-comparison">
+                    <div>
+                        <label>Aktual <strong>{{ item.actual }}%</strong></label>
+                        <span><i style="width: {{ item.actual }}%"></i></span>
+                    </div>
+                    <div class="is-planned">
+                        <label>
+                            Timeline
+                            <strong>
+                                {% if item.planned is not None %}{{ item.planned }}%{% else %}–{% endif %}
+                            </strong>
+                        </label>
+                        <span><i style="width: {% if item.planned is not None %}{{ item.planned }}{% else %}0{% endif %}%"></i></span>
+                    </div>
+                </div>
+                <footer>
+                    {% if item.last_report %}
+                        Update report {{ item.last_report|date:"d M Y" }}
+                    {% else %}
+                        Belum ada tanggal report
+                    {% endif %}
+                </footer>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

@@ -5,9 +5,9 @@ from django.db import models
 from core.models import AuditModel, Location
 from django_encrypted_filefield.fields import EncryptedImageField
 from django.contrib.gis.db import models as gis_models
+from django.core.exceptions import ValidationError
 from django.conf import settings
-from datetime import time
-from django_currentuser.middleware import get_current_authenticated_user
+from datetime import datetime, time, timedelta
 
 class RoleType(models.TextChoices):
     ADMIN = "admin", "Admin"
@@ -17,6 +17,7 @@ class RoleType(models.TextChoices):
     QS = "qs", "QS"
     IT = "it", "IT"
     PM = "pm", "PM"
+    SALES = "sales", "Sales"
     SM = "sm", "SM"
     SPV = "spv", "Supervisor"
     ARCHITECT = "architect", "Architect"
@@ -48,11 +49,26 @@ class AttendanceStatus(models.TextChoices):
     LEAVE = 'Leave', 'Leave'
     HOLYDAY = 'Holiday', 'Holiday'
 
+
+class AttendanceWorkMode(models.TextChoices):
+    OFFICE = 'office', 'Office'
+    WFH = 'wfh', 'Work From Home'
+
+
 class LeaveStatus(models.TextChoices):
     PENDING = 'Pending', 'Pending'
     APPROVED = 'Approved', 'Approved'
     REJECTED = 'Rejected', 'Rejected'
     CANCELLED = 'Cancelled', 'Cancelled'
+
+
+class NotificationCategory(models.TextChoices):
+    GENERAL = 'general', 'General'
+    APPROVAL = 'approval', 'Approval'
+    DEADLINE = 'deadline', 'Deadline'
+    INVENTORY = 'inventory', 'Inventory'
+    ATTENDANCE = 'attendance', 'Attendance'
+    SYSTEM = 'system', 'System'
 
 def upload_signature(instance, filename):
     timestamp_now = timezone.now().strftime("%Y%m%d%H%M%S")
@@ -94,6 +110,94 @@ def upload_id_worker(instance, filename):
     filename = f'WKR_{timestamp_now}.jpeg'
     return os.path.join('id_worker', filename)
 
+
+def default_signature_expiry():
+    return timezone.now() + timedelta(days=30)
+
+
+class WorkPolicy(AuditModel):
+    name = models.CharField(max_length=100, unique=True)
+    office_location = models.ForeignKey(
+        Location,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='work_policies',
+    )
+    work_start = models.TimeField(default=time(9, 0))
+    work_end = models.TimeField(default=time(17, 0))
+    late_grace_minutes = models.PositiveIntegerField(default=15)
+    overtime_after_minutes = models.PositiveIntegerField(default=30)
+    geofence_radius_meters = models.PositiveIntegerField(default=100)
+    allow_wfh = models.BooleanField(
+        default=False,
+        help_text='Izinkan staff memilih mode Work From Home.',
+    )
+    wfh_geofence_radius_meters = models.PositiveIntegerField(
+        default=150,
+        help_text=(
+            'Radius maksimum dari alamat rumah pada profile ketika WFH.'
+        ),
+    )
+    workdays = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name_plural = 'Work policies'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.work_start >= self.work_end:
+            errors['work_end'] = (
+                'Jam selesai kerja harus setelah jam mulai kerja.'
+            )
+        invalid_workdays = [
+            day for day in self.workdays
+            if not isinstance(day, int) or day < 0 or day > 6
+        ]
+        if invalid_workdays or len(set(self.workdays)) != len(self.workdays):
+            errors['workdays'] = (
+                'Workdays harus berisi angka unik 0 (Senin) sampai 6 (Minggu).'
+            )
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self.workdays:
+            self.workdays = [0, 1, 2, 3, 4]
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class HolidaySource(models.TextChoices):
+    MANUAL = 'manual', 'Manual'
+    NATIONAL = 'national', 'Kalender Nasional'
+
+
+class Holiday(AuditModel):
+    date = models.DateField(unique=True)
+    name = models.CharField(max_length=150)
+    source = models.CharField(
+        max_length=20,
+        choices=HolidaySource.choices,
+        default=HolidaySource.MANUAL,
+        help_text=(
+            'Entri "Kalender Nasional" dibuat oleh sinkronisasi otomatis dan '
+            'boleh ditimpa ulang. Entri manual tidak pernah diubah sync.'
+        ),
+    )
+
+    class Meta:
+        ordering = ('-date',)
+
+    def __str__(self):
+        return f'{self.name} ({self.date})'
+
+
 class Profile(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True)
@@ -107,43 +211,18 @@ class Profile(AuditModel):
     phone_number = models.CharField(max_length=20)
     profile_picture = models.ImageField(upload_to=upload_profile_picture, default='default_photo/default_profile.png')
     is_active = models.BooleanField(default=True)
+    work_policy = models.ForeignKey(
+        WorkPolicy,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='members',
+    )
     # update_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
         return self.full_name
     
-    def delete(self, using=None, keep_parents=False):
-        list_team_members = self.team_members.all()
-        list_user_notifications = self.user_notifications.all()
-        list_user_attendance = self.user_attendance.all()
-        list_user_leave_request = self.user_leave_request.all()
-        user = get_current_authenticated_user()
-        for team in list_team_members:
-            team.is_deleted  = True
-            team.deleted_at  = timezone.now()
-            if user:
-                team.deleted_by = user
-            team.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for notification in list_user_notifications:
-            notification.is_deleted  = True
-            notification.deleted_at  = timezone.now()
-            if user:
-                notification.deleted_by = user
-            notification.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for attendance in list_user_attendance:
-            attendance.is_deleted  = True
-            attendance.deleted_at  = timezone.now()
-            if user:
-                attendance.deleted_by = user
-            attendance.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for leave_req in list_user_leave_request:
-            leave_req.is_deleted  = True
-            leave_req.deleted_at  = timezone.now()
-            if user:
-                leave_req.deleted_by = user
-            leave_req.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
-
 class Team(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -152,32 +231,34 @@ class Team(AuditModel):
     def __str__(self) -> str:
         return self.name
     
-    def delete(self, using=None, keep_parents=False):
-        list_members = self.members.all()
-        user = get_current_authenticated_user()
-        for member in list_members:
-            member.is_deleted  = True
-            member.deleted_at  = timezone.now()
-            if user:
-                member.deleted_by = user
-            member.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
-
-class TeamMember(models.Model):
+class TeamMember(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='members')
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='team_members')
     is_active = models.BooleanField(default=True)
     timestamp = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('team', 'user'),
+                condition=models.Q(is_deleted=False),
+                name='team_unique_active_member',
+            ),
+        ]
+
     def __str__(self) -> str:
         return f"{self.user.full_name} - {self.team.name}"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
     
 class Signature(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_signatures')
     signature = EncryptedImageField(upload_to=upload_signature)
-    expire_at = models.DateTimeField(auto_now_add=timezone.now() + timezone.timedelta(days=30))
+    expire_at = models.DateTimeField(default=default_signature_expiry)
 
     def __str__(self) -> str:
         return f'Signature {self.user.full_name} expire at {self.expire_at.strftime("%a, %d %b %Y %H:%M:%S")}'
@@ -186,18 +267,44 @@ class Initial(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_initial')
     initial = EncryptedImageField(upload_to=upload_initial)
-    expire_at = models.DateTimeField(auto_now_add=timezone.now() + timezone.timedelta(days=30))
+    expire_at = models.DateTimeField(default=default_signature_expiry)
 
     def __str__(self) -> str:
         return f'Initial {self.user.full_name}'
     
-class Notifications(models.Model):
+class Notifications(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_notifications')
     title = models.CharField(max_length=255)
     message = models.TextField()
-    is_read = models.BooleanField()
-    sent_at = models.DateTimeField()
+    category = models.CharField(
+        max_length=20,
+        choices=NotificationCategory.choices,
+        default=NotificationCategory.GENERAL,
+    )
+    action_url = models.CharField(max_length=500, blank=True)
+    dedupe_key = models.CharField(max_length=255, blank=True)
+    is_read = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ('-sent_at',)
+        indexes = [
+            models.Index(
+                fields=('user', 'is_read', '-sent_at'),
+                name='team_notification_inbox_idx',
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'dedupe_key'),
+                condition=~models.Q(dedupe_key=''),
+                name='team_unique_notification_dedupe',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user}: {self.title}'
 
 class SubContractor(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -211,29 +318,6 @@ class SubContractor(AuditModel):
     def __str__(self) -> str:
         return self.name
     
-    def delete(self, using=None, keep_parents=False):
-        list_workers = self.workers.all()
-        list_subcontractors_on_project = self.subcontractors_on_project.all()
-        user = get_current_authenticated_user()
-        self.locations.is_deleted  = True
-        self.locations.deleted_at  = timezone.now()
-        if user:
-            self.locations.deleted_by = user
-        self.locations.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for worker in list_workers:
-            worker.is_deleted  = True
-            worker.deleted_at  = timezone.now()
-            if user:
-                worker.deleted_by = user
-            worker.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        for subcon_on_proj in list_subcontractors_on_project:
-            subcon_on_proj.is_deleted  = True
-            subcon_on_proj.deleted_at  = timezone.now()
-            if user:
-                subcon_on_proj.deleted_by = user
-            subcon_on_proj.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
-
 class SubContractorWorker(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subcon = models.ForeignKey(SubContractor, on_delete=models.CASCADE, related_name='subcons_worker')
@@ -257,26 +341,96 @@ class SubContractorOnProject(AuditModel):
 class Attendance(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_attendance')
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(default=timezone.localdate)
     check_in_location_label = models.CharField(max_length=108, null=True, blank=True)
     check_out_location_label = models.CharField(max_length=108, null=True, blank=True)
     check_in = models.DateTimeField(null=True, blank=True)
     check_out = models.DateTimeField(null=True, blank=True)
-    check_in_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
-    check_out_location = gis_models.PointField(default='POINT(115.20762634277344 -8.639009475708008)')
+    check_in_location = gis_models.PointField(null=True, blank=True)
+    check_out_location = gis_models.PointField(null=True, blank=True)
+    check_in_accuracy_meters = models.FloatField(
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    check_out_accuracy_meters = models.FloatField(
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    check_in_distance_meters = models.FloatField(
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    check_out_distance_meters = models.FloatField(
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    work_mode = models.CharField(
+        max_length=10,
+        choices=AttendanceWorkMode.choices,
+        default=AttendanceWorkMode.OFFICE,
+    )
     status = models.CharField(max_length=20, choices=AttendanceStatus.choices)
-    photo_check_in = models.ImageField(upload_to=upload_check_in)
+    status_override = models.CharField(
+        max_length=20,
+        choices=AttendanceStatus.choices,
+        null=True,
+        blank=True,
+        help_text=(
+            'Khusus koreksi superuser. Jika diisi, nilai ini mengesampingkan '
+            'status hasil perhitungan otomatis.'
+        ),
+    )
+    status_override_reason = models.TextField(
+        blank=True,
+        help_text='Alasan koreksi status oleh superuser.',
+    )
+    photo_check_in = models.ImageField(
+        upload_to=upload_check_in, null=True, blank=True
+    )
     photo_check_out = models.ImageField(upload_to=upload_check_out, null=True, blank=True)
+    work_policy = models.ForeignKey(
+        WorkPolicy,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attendance_records',
+    )
+    worked_minutes = models.PositiveIntegerField(default=0, editable=False)
+    overtime_minutes = models.PositiveIntegerField(default=0, editable=False)
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'date'),
+                condition=models.Q(is_deleted=False),
+                name='team_unique_active_attendance_day',
+            ),
+        ]
 
     def __str__(self) -> str:
         return f'Attendance {self.user.full_name} on {self.date}'
     
     def save(self, *args, **kwargs):
         self.set_attendance_status()
-        super().save(*args, **kwargs)
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if (
+            self.status_override
+            and not (self.status_override_reason or '').strip()
+        ):
+            raise ValidationError({
+                'status_override_reason': (
+                    'Alasan wajib diisi ketika status dioverride.'
+                ),
+            })
 
     def set_attendance_status(self):
         """
@@ -292,9 +446,12 @@ class Attendance(AuditModel):
         if not self.check_out and self.photo_check_out:
             self.check_out = timezone.now()
 
-        # 2. Guard Clause: Jika check_in masih kosong, hentikan fungsi untuk mencegah error
+        # 2. Guard Clause: record manual (leave/holiday/absent) dapat tidak
+        # memiliki waktu check-in.
         if not self.check_in:
-            return 
+            if self.status_override:
+                self.status = self.status_override
+            return
 
         # 3. Konversi ke Local Time (SANGAT PENTING)
         # Database menyimpan UTC, kita harus ubah ke waktu lokal user (misal: WIB) sebelum ambil .time()
@@ -305,15 +462,70 @@ class Attendance(AuditModel):
         jam_masuk = local_check_in.time()
         jam_keluar = local_check_out.time() if local_check_out else None
 
-        # 4. Tentukan Batas Waktu
-        batas_masuk = time(10, 0, 0)   # 10:00
-        batas_keluar = time(17, 0, 0) # 17:00
+        policy = self.work_policy or self.user.work_policy
+        if policy is None:
+            policy = WorkPolicy.objects.filter(is_active=True).first()
+        if policy and not self.work_policy_id:
+            self.work_policy = policy
+
+        attendance_date = self.date or local_check_in.date()
+        if Holiday.objects.filter(date=attendance_date).exists():
+            # Hari libur bukan hari kerja, sehingga tidak ada jam masuk yang
+            # bisa dilanggar. Namun staff yang tetap bekerja harus terbayar:
+            # seluruh durasi kerjanya dihitung sebagai lembur.
+            self.worked_minutes = 0
+            self.overtime_minutes = 0
+            if local_check_out:
+                worked = max(
+                    int(
+                        (local_check_out - local_check_in).total_seconds() // 60
+                    ),
+                    0,
+                )
+                self.worked_minutes = worked
+                self.overtime_minutes = worked
+            self.status = (
+                self.status_override or AttendanceStatus.HOLYDAY
+            )
+            return
+
+        # 4. Tentukan batas waktu berdasarkan kebijakan kerja.
+        batas_masuk = policy.work_start if policy else time(9, 0)
+        batas_keluar = policy.work_end if policy else time(17, 0)
+        grace_minutes = policy.late_grace_minutes if policy else 0
+        batas_masuk_dt = datetime.combine(
+            attendance_date,
+            batas_masuk,
+            tzinfo=local_check_in.tzinfo,
+        ) + timedelta(minutes=grace_minutes)
 
         # 5. Logic boolean biar lebih mudah dibaca (Refactoring)
-        is_late = jam_masuk > batas_masuk
+        is_late = local_check_in > batas_masuk_dt
         
         # Jika belum check out, kita asumsikan TIDAK pulang cepat (masih kerja)
         is_early_leave = jam_keluar is not None and jam_keluar < batas_keluar
+
+        self.worked_minutes = 0
+        self.overtime_minutes = 0
+        if local_check_out:
+            worked = max(
+                int((local_check_out - local_check_in).total_seconds() // 60),
+                0,
+            )
+            self.worked_minutes = worked
+            work_end_dt = datetime.combine(
+                attendance_date,
+                batas_keluar,
+                tzinfo=local_check_out.tzinfo,
+            )
+            overtime_threshold = (
+                policy.overtime_after_minutes if policy else 30
+            )
+            overtime = int(
+                (local_check_out - work_end_dt).total_seconds() // 60
+            )
+            if overtime >= overtime_threshold:
+                self.overtime_minutes = max(overtime, 0)
 
         # 6. Penentuan Status
         if is_late and is_early_leave:
@@ -322,9 +534,14 @@ class Attendance(AuditModel):
             self.status = AttendanceStatus.LATE
         elif is_early_leave:
             self.status = AttendanceStatus.EARLY_LEAVE
+        elif self.overtime_minutes:
+            self.status = AttendanceStatus.OVERTIME
         else:
             # Masuk tepat waktu DAN (pulang tepat waktu ATAU belum pulang)
             self.status = AttendanceStatus.ONTIME
+
+        if self.status_override:
+            self.status = self.status_override
     
 class LeaveRequest (AuditModel):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_leave_request')
@@ -336,19 +553,27 @@ class LeaveRequest (AuditModel):
     approved_by = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, blank=True)
     approved_date = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F('start_date')),
+                name='team_leave_end_on_or_after_start',
+            ),
+        ]
+
     def __str__(self) -> str:
         return f'Leave Request {self.user.full_name} from {self.start_date} to {self.end_date}'
-    
-    def delete(self, using=None, keep_parents=False):
-        list_leave_request_signatures = self.leave_request_signatures.all()
-        user = get_current_authenticated_user()
-        for leave_req in list_leave_request_signatures:
-            leave_req.is_deleted  = True
-            leave_req.deleted_at  = timezone.now()
-            if user:
-                leave_req.deleted_by = user
-            leave_req.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
-        return super().delete(using, keep_parents)
+
+    def clean(self):
+        super().clean()
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError(
+                {'end_date': 'End date tidak boleh sebelum start date.'}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
     
 class SignatureOnLeaveRequest(AuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

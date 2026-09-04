@@ -1,0 +1,168 @@
+{% load i18n %}
+
+{% if project_showcase_summary %}
+    <section class="mmg-project-showcase" aria-labelledby="project-showcase-title">
+        <header class="mmg-showcase-heading">
+            <div>
+                <span class="mmg-showcase-eyebrow">MMG PROJECT PULSE</span>
+                <h2 id="project-showcase-title">Portofolio proyek</h2>
+                <p>
+                    Gambaran visual progress, timeline, dan fokus operasional
+                    terbaru untuk tim dan client.
+                </p>
+            </div>
+            <div class="mmg-showcase-heading__mark" aria-hidden="true">
+                <span class="material-symbols-outlined">architecture</span>
+            </div>
+        </header>
+
+        <div class="mmg-showcase-summary">
+            <div class="mmg-summary-tile">
+                <span class="material-symbols-outlined">apartment</span>
+                <div>
+                    <strong>{{ project_showcase_summary.total }}</strong>
+                    <small>Total proyek</small>
+                </div>
+            </div>
+            <div class="mmg-summary-tile">
+                <span class="material-symbols-outlined">donut_large</span>
+                <div>
+                    <strong>{{ project_showcase_summary.average_progress }}%</strong>
+                    <small>Rata-rata progress</small>
+                </div>
+            </div>
+            <div class="mmg-summary-tile">
+                <span class="material-symbols-outlined">construction</span>
+                <div>
+                    <strong>{{ project_showcase_summary.active }}</strong>
+                    <small>Sedang berjalan</small>
+                </div>
+            </div>
+            <div class="mmg-summary-tile">
+                <span class="material-symbols-outlined">event_upcoming</span>
+                <div>
+                    <strong>{{ project_showcase_summary.deadlines_soon }}</strong>
+                    <small>Deadline 30 hari</small>
+                </div>
+            </div>
+        </div>
+
+        {% if project_showcase_cards %}
+            <div class="mmg-project-grid">
+                {% for card in project_showcase_cards %}
+                    <article class="mmg-project-card">
+                        <div class="mmg-project-visual">
+                            {% if card.preview_url %}
+                                <img
+                                    alt="Visual {{ card.project.project_name }}"
+                                    loading="lazy"
+                                    src="{{ card.preview_url }}"
+                                >
+                            {% else %}
+                                <div class="mmg-blueprint" aria-hidden="true">
+                                    <span class="mmg-blueprint__building"></span>
+                                    <span class="mmg-blueprint__axis mmg-blueprint__axis--x">A—D</span>
+                                    <span class="mmg-blueprint__axis mmg-blueprint__axis--y">01—04</span>
+                                </div>
+                            {% endif %}
+                            <div class="mmg-project-visual__shade"></div>
+                            <span class="mmg-status mmg-status--{{ card.status_tone }}">
+                                {{ card.status_label }}
+                            </span>
+                            <span class="mmg-project-code">
+                                {{ card.project.project_code }}
+                            </span>
+                        </div>
+
+                        <div class="mmg-project-card__body">
+                            <div class="mmg-project-card__title">
+                                <div>
+                                    <h3>
+                                        <a href="{{ card.change_url }}">
+                                            {{ card.project.project_name }}
+                                        </a>
+                                    </h3>
+                                    <p>
+                                        {{ card.client_name }} ·
+                                        {{ card.location_name }}
+                                    </p>
+                                </div>
+                                <div
+                                    class="mmg-progress-ring"
+                                    style="--project-progress: {{ card.progress }};"
+                                    aria-label="Progress {{ card.progress_label }}"
+                                >
+                                    <strong>{{ card.progress_label }}</strong>
+                                </div>
+                            </div>
+
+                            <div class="mmg-timeline">
+                                <div class="mmg-timeline__labels">
+                                    <span>Progress pekerjaan</span>
+                                    <strong>{{ card.pace_label }}</strong>
+                                </div>
+                                <div class="mmg-timeline__track">
+                                    <span style="width: {{ card.progress }}%"></span>
+                                    <i style="left: {{ card.calendar_progress }}%"></i>
+                                </div>
+                                <div class="mmg-timeline__dates">
+                                    <span>{{ card.project.start_date|date:"d M Y" }}</span>
+                                    <span>
+                                        {{ card.project.end_date|date:"d M Y"|default:"Open ended" }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="mmg-project-mini-stats">
+                                <div>
+                                    <span>Dokumen</span>
+                                    <strong>
+                                        {{ card.documents_approved }}/{{ card.documents_total }}
+                                    </strong>
+                                </div>
+                                <div>
+                                    <span>Drawing</span>
+                                    <strong>
+                                        {{ card.drawings_approved }}/{{ card.drawings_total }}
+                                    </strong>
+                                </div>
+                                <div>
+                                    <span>Tim</span>
+                                    <strong>{{ card.team_members_total }}</strong>
+                                </div>
+                                <div>
+                                    <span>Perhatian</span>
+                                    <strong>{{ card.attention_total }}</strong>
+                                </div>
+                            </div>
+
+                            <div class="mmg-project-card__footer">
+                                <span class="mmg-deadline mmg-deadline--{{ card.deadline_tone }}">
+                                    <span class="material-symbols-outlined">flag</span>
+                                    {{ card.deadline_label }}
+                                </span>
+                                <a class="mmg-presentation-link" href="{{ card.presentation_url }}">
+                                    Presentasikan
+                                    <span class="material-symbols-outlined">arrow_outward</span>
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            {% if project_showcase_total_on_page > 6 %}
+                <p class="mmg-showcase-note">
+                    Enam proyek pertama ditampilkan sebagai spotlight.
+                    Seluruh hasil tetap tersedia pada tabel di bawah.
+                </p>
+            {% endif %}
+        {% else %}
+            <div class="mmg-showcase-empty">
+                <span class="material-symbols-outlined">architecture</span>
+                <strong>Belum ada proyek untuk ditampilkan.</strong>
+                <p>Tambahkan proyek pertama untuk memulai portfolio visual.</p>
+            </div>
+        {% endif %}
+    </section>
+{% endif %}

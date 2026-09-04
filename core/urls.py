@@ -24,4 +24,14 @@ urlpatterns = [
     path('finance-type/<str:pk>/', FinanceTypeAPIView.as_view(), name='finance_type_detail'),
     path('payment-via/', PaymentViaAPIView.as_view(), name='payment_via_list'),
     path('payment-via/<str:pk>/', PaymentViaAPIView.as_view(), name='payment_via_detail'),
+    path(
+        'approval/',
+        ApprovalQueueAPIView.as_view(),
+        name='approval_queue',
+    ),
+    path(
+        'approval/<uuid:pk>/<str:decision>/',
+        ApprovalDecisionAPIView.as_view(),
+        name='approval_decision',
+    ),
 ]

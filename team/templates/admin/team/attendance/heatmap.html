@@ -1,0 +1,60 @@
+{% if attendance_heatmap %}
+<section class="mmg-insight-panel mmg-attendance-heatmap">
+    <header class="mmg-insight-heading">
+        <div>
+            <span>TEAM ATTENDANCE</span>
+            <h2>Heatmap {{ attendance_heatmap.label }}</h2>
+            <p>Ringkasan kehadiran harian untuk mendeteksi pola telat, absen, dan WFH lebih cepat.</p>
+        </div>
+        <span class="material-symbols-outlined">calendar_view_month</span>
+    </header>
+
+    {% if attendance_heatmap.rows %}
+        <div class="mmg-heatmap-scroll">
+            <div class="mmg-heatmap-table">
+                <div class="mmg-heatmap-header">
+                    <span>Staff</span>
+                    <div>
+                        {% for day in attendance_heatmap.days %}
+                            <time class="{% if day.weekday >= 5 %}is-weekend{% endif %}">
+                                {{ day.day }}
+                            </time>
+                        {% endfor %}
+                    </div>
+                    <span>Ringkasan</span>
+                </div>
+                {% for row in attendance_heatmap.rows %}
+                    <article class="mmg-heatmap-row">
+                        <div class="mmg-heatmap-person">
+                            <strong>{{ row.profile.full_name }}</strong>
+                            <small>{{ row.profile.get_role_display }}</small>
+                        </div>
+                        <div class="mmg-heatmap-cells">
+                            {% for cell in row.cells %}
+                                <i class="is-{{ cell.tone }}"
+                                   title="{{ cell.title }}"></i>
+                            {% endfor %}
+                        </div>
+                        <div class="mmg-heatmap-stats">
+                            <span class="is-present">{{ row.present }} hadir</span>
+                            <span class="is-late">{{ row.late }} telat</span>
+                            <span class="is-absent">{{ row.absent }} absen</span>
+                            <span class="is-wfh">{{ row.wfh }} WFH</span>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </div>
+        <footer class="mmg-heatmap-legend">
+            <span><i class="is-present"></i>Hadir</span>
+            <span><i class="is-late"></i>Telat</span>
+            <span><i class="is-absent"></i>Absen</span>
+            <span><i class="is-wfh"></i>WFH</span>
+            <span><i class="is-leave"></i>Cuti/libur</span>
+            <span><i class="is-off"></i>Non-workday</span>
+        </footer>
+    {% else %}
+        <p class="mmg-insight-empty">Belum ada staff yang dapat ditampilkan.</p>
+    {% endif %}
+</section>
+{% endif %}

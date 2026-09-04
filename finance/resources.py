@@ -154,7 +154,9 @@ class ExpenseResource(resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
         # import_id_fields   = ('branch', 'date', 'due_date', 'description', 'total_amount', 'timestamp')
-        fields = ('id', 'project', 'date', 'total', 'notes', 'payment_proof')
+        fields = (
+            'id', 'project', 'date', 'total', 'notes', 'photo_proof',
+        )
 
 class ExpenseDetailResource(resources.ModelResource):
     class Meta:
@@ -184,6 +186,7 @@ class FinanceDataResource(resources.ModelResource):
         model = FinanceData
         # Hanya kolom‐kolom yang akan di‐import/export
         fields = (
+            'id',
             'project',
             'other',
             'date',
@@ -203,6 +206,7 @@ class PettyCashResource(resources.ModelResource):
     class Meta:
         model = PettyCash
         fields = (
+            'id',
             'project',
             'other',
             'date',

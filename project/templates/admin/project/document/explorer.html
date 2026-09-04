@@ -1,0 +1,278 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static unfold %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/document_explorer.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="flex items-center gap-2 px-4 py-3 text-sm lg:px-8">
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{% url 'admin:index' %}">
+            {% translate "Dashboard" %}
+        </a>
+        <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{{ explorer_url }}">
+            {% translate "Documents" %}
+        </a>
+        {% if selected_project %}
+            <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+            <span>{{ selected_project.project_code }}</span>
+        {% endif %}
+        {% if selected_type %}
+            <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+            <span>{{ selected_type.name }}</span>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="mmg-explorer-page">
+        <div class="mmg-explorer-header">
+            <div class="mmg-explorer-title">
+                <div class="mmg-explorer-title-icon">
+                    <span class="material-symbols-outlined">folder_open</span>
+                </div>
+                <div>
+                    <p class="mmg-eyebrow">MMG PROJECT FILES</p>
+                    <h1>{% translate "Document Explorer" %}</h1>
+                    <p>
+                        Jelajahi dokumen berdasarkan folder project dan jenis
+                        dokumen, kemudian buka versi file terbaru.
+                    </p>
+                </div>
+            </div>
+            <div class="mmg-explorer-actions">
+                <a href="{{ table_url }}" class="mmg-explorer-button">
+                    <span class="material-symbols-outlined">table_rows</span>
+                    {% translate "Tampilan tabel" %}
+                </a>
+                {% if has_add_permission %}
+                    <a href="{{ add_url }}" class="mmg-explorer-button is-primary">
+                        <span class="material-symbols-outlined">note_add</span>
+                        {% translate "Dokumen baru" %}
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mmg-explorer-toolbar">
+            <form method="get" class="mmg-explorer-search">
+                {% if selected_project %}
+                    <input type="hidden" name="project" value="{{ selected_project.pk }}">
+                {% endif %}
+                {% if selected_type %}
+                    <input type="hidden" name="document_type" value="{{ selected_type.pk }}">
+                {% endif %}
+                {% if group_by %}
+                    <input type="hidden" name="group_by" value="{{ group_by }}">
+                {% endif %}
+                {% if show_files %}
+                    <input type="hidden" name="show" value="files">
+                {% endif %}
+                <span class="material-symbols-outlined">search</span>
+                <input type="search"
+                       name="q"
+                       value="{{ query }}"
+                       placeholder="{% translate 'Cari nama, nomor, project, atau jenis dokumen…' %}">
+                <select name="status" aria-label="{% translate 'Status dokumen' %}">
+                    <option value="">{% translate "Semua status" %}</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}"
+                                {% if selected_status == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit">{% translate "Cari" %}</button>
+            </form>
+
+            <div class="mmg-explorer-view-switch">
+                <a href="{{ group_project_url }}"
+                   class="{% if group_by == 'project' %}is-active{% endif %}">
+                    <span class="material-symbols-outlined">apartment</span>
+                    {% translate "Per project" %}
+                </a>
+                <a href="{{ group_type_url }}"
+                   class="{% if group_by == 'type' %}is-active{% endif %}">
+                    <span class="material-symbols-outlined">category</span>
+                    {% translate "Per jenis" %}
+                </a>
+            </div>
+        </div>
+
+        <div class="mmg-explorer-path">
+            <a href="{{ explorer_url }}">
+                <span class="material-symbols-outlined">computer</span>
+                MMG Documents
+            </a>
+            {% if selected_project %}
+                <span class="material-symbols-outlined">chevron_right</span>
+                <span>{{ selected_project.project_code }} · {{ selected_project.project_name }}</span>
+            {% endif %}
+            {% if selected_type %}
+                <span class="material-symbols-outlined">chevron_right</span>
+                <span>{{ selected_type.name }}</span>
+            {% endif %}
+            {% if show_files and not selected_project and not selected_type %}
+                <span class="material-symbols-outlined">chevron_right</span>
+                <span>{% translate "Semua file" %}</span>
+            {% endif %}
+        </div>
+
+        {% if not show_files and folders %}
+            <div class="mmg-explorer-section-heading">
+                <div>
+                    <h2>{% translate "Folder" %}</h2>
+                    <p>{{ folders|length }} folder ditampilkan</p>
+                </div>
+                <a href="{{ show_all_files_url }}">
+                    <span class="material-symbols-outlined">select_all</span>
+                    {% translate "Tampilkan semua file di sini" %}
+                </a>
+            </div>
+            <div class="mmg-folder-grid">
+                {% for folder in folders %}
+                    <a href="{{ folder.url }}" class="mmg-folder-card">
+                        <div class="mmg-folder-art">
+                            <span class="material-symbols-outlined">folder</span>
+                        </div>
+                        <div class="mmg-folder-content">
+                            <p class="mmg-folder-code">{{ folder.code }}</p>
+                            <h3>{{ folder.name }}</h3>
+                            <div class="mmg-folder-meta">
+                                <span>{{ folder.count }} dokumen</span>
+                                <span>{{ folder.secondary_count }} {{ folder.secondary_label }}</span>
+                            </div>
+                            {% if folder.latest_update %}
+                                <p class="mmg-folder-updated">
+                                    Diperbarui {{ folder.latest_update|date:"d M Y, H:i" }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <span class="material-symbols-outlined mmg-folder-open">arrow_forward</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% elif show_files and document_cards %}
+            <div class="mmg-explorer-section-heading">
+                <div>
+                    <h2>{% translate "Dokumen" %}</h2>
+                    <p>
+                        {{ page_obj.paginator.count }} dokumen ditemukan
+                        {% if query %}untuk “{{ query }}”{% endif %}
+                    </p>
+                </div>
+                {% if selected_project or selected_type %}
+                    <a href="{{ root_url }}">
+                        <span class="material-symbols-outlined">drive_folder_upload</span>
+                        {% translate "Kembali ke folder utama" %}
+                    </a>
+                {% endif %}
+            </div>
+            <div class="mmg-file-grid">
+                {% for card in document_cards %}
+                    <article class="mmg-file-card" data-status="{{ card.document.status }}">
+                        <div class="mmg-file-card-top">
+                            <div class="mmg-file-icon">
+                                <span class="material-symbols-outlined">{{ card.file_icon }}</span>
+                            </div>
+                            <span class="mmg-file-status">{{ card.document.get_status_display }}</span>
+                        </div>
+                        <div class="mmg-file-body">
+                            <p class="mmg-file-type">{{ card.document.document_type.name }}</p>
+                            <h3>
+                                <a href="{{ card.change_url }}">{{ card.document.document_name }}</a>
+                            </h3>
+                            <p class="mmg-file-project">
+                                {{ card.document.project.project_code }} ·
+                                {{ card.document.project.project_name }}
+                            </p>
+                            {% if card.latest_version %}
+                                <div class="mmg-file-version">
+                                    <span class="material-symbols-outlined">history</span>
+                                    <div>
+                                        <strong>{{ card.latest_version.document_number }}</strong>
+                                        <span>{{ card.latest_version.title }}</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="mmg-file-version is-empty">
+                                    <span class="material-symbols-outlined">history_toggle_off</span>
+                                    <span>{% translate "Belum memiliki versi file" %}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="mmg-file-footer">
+                            <div>
+                                <strong>{{ card.version_count }}</strong>
+                                <span>{% translate "versi" %}</span>
+                            </div>
+                            <div class="mmg-file-footer-actions">
+                                <a href="{{ card.change_url }}" title="{% translate 'Buka detail' %}">
+                                    <span class="material-symbols-outlined">open_in_new</span>
+                                </a>
+                                {% if card.file_url %}
+                                    <a href="{{ card.file_url }}"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="{% translate 'Buka file terbaru' %}">
+                                        <span class="material-symbols-outlined">download</span>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            {% if page_obj.paginator.num_pages > 1 %}
+                <nav class="mmg-explorer-pagination">
+                    {% if previous_page_url %}
+                        <a href="{{ previous_page_url }}">
+                            <span class="material-symbols-outlined">chevron_left</span>
+                            {% translate "Sebelumnya" %}
+                        </a>
+                    {% else %}
+                        <span></span>
+                    {% endif %}
+                    <strong>
+                        Halaman {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                    </strong>
+                    {% if next_page_url %}
+                        <a href="{{ next_page_url }}">
+                            {% translate "Berikutnya" %}
+                            <span class="material-symbols-outlined">chevron_right</span>
+                        </a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="mmg-explorer-empty">
+                <span class="material-symbols-outlined">
+                    {% if show_files %}find_in_page{% else %}folder_off{% endif %}
+                </span>
+                <h2>
+                    {% if show_files %}
+                        {% translate "Dokumen tidak ditemukan" %}
+                    {% else %}
+                        {% translate "Belum ada folder dokumen" %}
+                    {% endif %}
+                </h2>
+                <p>Ubah filter pencarian atau tambahkan dokumen baru.</p>
+                <div>
+                    <a href="{{ explorer_url }}" class="mmg-explorer-button">
+                        {% translate "Bersihkan filter" %}
+                    </a>
+                    {% if has_add_permission %}
+                        <a href="{{ add_url }}" class="mmg-explorer-button is-primary">
+                            {% translate "Tambah dokumen" %}
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

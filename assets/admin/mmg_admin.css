@@ -1,0 +1,303 @@
+:root {
+    --mmg-black: #111111;
+    --mmg-black-soft: #1b1b1b;
+    --mmg-white: #ffffff;
+    --mmg-gold: #c58b16;
+    --mmg-gold-light: #f1c75b;
+}
+
+/* Black sidebar, white content, and gold accents form the MMG identity. */
+#nav-sidebar,
+#nav-sidebar-inner {
+    background: var(--mmg-black) !important;
+    border-color: #303030 !important;
+}
+
+#nav-sidebar h2,
+#nav-sidebar a,
+#nav-sidebar button {
+    color: #e7e7e7 !important;
+}
+
+#nav-sidebar a:hover,
+#nav-sidebar button:hover {
+    color: var(--mmg-gold-light) !important;
+}
+
+#nav-sidebar a.active {
+    background: rgb(197 139 22 / 18%) !important;
+    color: var(--mmg-gold-light) !important;
+}
+
+#nav-sidebar hr,
+#nav-sidebar .border-base-200 {
+    border-color: #303030 !important;
+}
+
+#nav-sidebar input {
+    background: var(--mmg-black-soft) !important;
+    border-color: #3b3b3b !important;
+    color: var(--mmg-white) !important;
+}
+
+#nav-sidebar input::placeholder {
+    color: #a3a3a3 !important;
+}
+
+#nav-sidebar .bg-white,
+#nav-sidebar .bg-base-50 {
+    background: var(--mmg-black-soft) !important;
+}
+
+/* Account widget uses semantic text classes instead of anchor colors. */
+#nav-sidebar [x-data*="openUserLinks"] {
+    background: var(--mmg-black) !important;
+    border-color: #303030 !important;
+}
+
+#nav-sidebar [x-data*="openUserLinks"] .text-important {
+    color: var(--mmg-white) !important;
+}
+
+#nav-sidebar [x-data*="openUserLinks"] .text-subtle {
+    color: #a3a3a3 !important;
+}
+
+#nav-sidebar [x-data*="openUserLinks"] > div:hover,
+#nav-sidebar [x-data*="openUserLinks"] > div.bg-base-100 {
+    background: var(--mmg-black-soft) !important;
+}
+
+#nav-sidebar [x-data*="openUserLinks"] > div > .material-symbols-outlined {
+    color: var(--mmg-gold-light) !important;
+}
+
+#nav-sidebar [x-data*="openUserLinks"] .bg-base-200 {
+    background: #303030 !important;
+    color: var(--mmg-gold-light) !important;
+}
+
+.mmg-file-help {
+    color: var(--color-font-subtle-light);
+}
+
+.dark .mmg-file-help {
+    color: var(--color-font-subtle-dark);
+}
+
+.mmg-password-help {
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.mmg-password-change-button {
+    align-items: center;
+    background: var(--mmg-gold);
+    border: 1px solid var(--mmg-gold);
+    border-radius: 0.375rem;
+    color: var(--mmg-black) !important;
+    display: inline-flex;
+    font-weight: 600;
+    gap: 0.4rem;
+    padding: 0.55rem 0.85rem;
+    text-decoration: none;
+    transition:
+        background-color 150ms ease,
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.mmg-password-change-button:hover {
+    background: var(--mmg-gold-light);
+    border-color: var(--mmg-gold-light);
+    box-shadow: 0 4px 12px rgb(197 139 22 / 24%);
+}
+
+.mmg-password-change-button:focus-visible {
+    outline: 2px solid var(--mmg-gold);
+    outline-offset: 3px;
+}
+
+.mmg-password-change-button .material-symbols-outlined {
+    font-size: 1.15rem;
+}
+
+/* Compact visual language shared by operational changelists. */
+.mmg-status-badge {
+    align-items: center;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    color: #4b5563;
+    display: inline-flex;
+    font-size: .72rem;
+    font-weight: 650;
+    gap: .4rem;
+    line-height: 1;
+    padding: .4rem .62rem;
+    white-space: nowrap;
+}
+
+.mmg-status-badge > span {
+    background: #6b7280;
+    border-radius: 50%;
+    height: .42rem;
+    width: .42rem;
+}
+
+.mmg-status-badge--success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
+.mmg-status-badge--success > span {
+    background: #16a34a;
+}
+
+.mmg-status-badge--warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+.mmg-status-badge--warning > span {
+    background: #d97706;
+}
+
+.mmg-status-badge--danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.mmg-status-badge--danger > span {
+    background: #dc2626;
+}
+
+.mmg-status-badge--info {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1e40af;
+}
+
+.mmg-status-badge--info > span {
+    background: #2563eb;
+}
+
+.dark .mmg-status-badge {
+    background: rgb(255 255 255 / 4%);
+    border-color: #3f3f46;
+    color: #d4d4d8;
+}
+
+.dark .mmg-status-badge--success {
+    background: rgb(22 163 74 / 12%);
+    border-color: rgb(22 163 74 / 30%);
+    color: #86efac;
+}
+
+.dark .mmg-status-badge--warning {
+    background: rgb(217 119 6 / 12%);
+    border-color: rgb(217 119 6 / 30%);
+    color: #fcd34d;
+}
+
+.dark .mmg-status-badge--danger {
+    background: rgb(220 38 38 / 12%);
+    border-color: rgb(220 38 38 / 30%);
+    color: #fca5a5;
+}
+
+.dark .mmg-status-badge--info {
+    background: rgb(37 99 235 / 12%);
+    border-color: rgb(37 99 235 / 30%);
+    color: #93c5fd;
+}
+
+.mmg-list-primary,
+.mmg-list-secondary {
+    display: block;
+    max-width: 22rem;
+}
+
+.mmg-list-primary {
+    color: var(--color-font-important-light);
+    font-weight: 650;
+}
+
+.dark .mmg-list-primary {
+    color: var(--color-font-important-dark);
+}
+
+.mmg-list-secondary {
+    color: var(--color-font-subtle-light);
+    font-size: .72rem;
+    margin-top: .18rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dark .mmg-list-secondary {
+    color: var(--color-font-subtle-dark);
+}
+
+.mmg-date-window {
+    display: flex;
+    flex-direction: column;
+    gap: .22rem;
+}
+
+.mmg-date-window > span {
+    align-items: center;
+    display: flex;
+    font-size: .75rem;
+    gap: .38rem;
+    white-space: nowrap;
+}
+
+.mmg-date-window i {
+    background: #c58b16;
+    border-radius: 50%;
+    height: .35rem;
+    width: .35rem;
+}
+
+.mmg-date-window > span:last-child i {
+    background: transparent;
+    border: 1px solid #c58b16;
+}
+
+.mmg-duration-chip {
+    background: rgb(197 139 22 / 10%);
+    border: 1px solid rgb(197 139 22 / 22%);
+    border-radius: .4rem;
+    color: #8a5d09;
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 650;
+    padding: .35rem .5rem;
+    white-space: nowrap;
+}
+
+.dark .mmg-duration-chip {
+    color: #f1c75b;
+}
+
+/*
+ * Toolbar admin memuat beberapa tombol aksi dan tidak membungkus baris. Pada
+ * layar sangat sempit teks tombol disembunyikan secara visual sehingga hanya
+ * ikonnya yang tampil, sementara teks tetap tersedia bagi screen reader.
+ */
+@media (max-width: 420px) {
+    .mmg-btn-label {
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        height: 1px;
+        overflow: hidden;
+        position: absolute;
+        white-space: nowrap;
+        width: 1px;
+    }
+}

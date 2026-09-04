@@ -1,0 +1,89 @@
+{% if project_showcase %}
+    <section class="mmg-project-detail" aria-label="Ringkasan visual proyek">
+        <div class="mmg-project-detail__visual">
+            {% if project_showcase.preview_url %}
+                <img
+                    alt="Visual {{ project_showcase.project.project_name }}"
+                    src="{{ project_showcase.preview_url }}"
+                >
+            {% else %}
+                <div class="mmg-blueprint mmg-blueprint--detail" aria-hidden="true">
+                    <span class="mmg-blueprint__building"></span>
+                    <span class="mmg-blueprint__axis mmg-blueprint__axis--x">A—D</span>
+                    <span class="mmg-blueprint__axis mmg-blueprint__axis--y">01—04</span>
+                </div>
+            {% endif %}
+            <div class="mmg-project-visual__shade"></div>
+            <span class="mmg-status mmg-status--{{ project_showcase.status_tone }}">
+                {{ project_showcase.status_label }}
+            </span>
+            <span class="mmg-project-code">
+                {{ project_showcase.project.project_code }}
+            </span>
+        </div>
+
+        <div class="mmg-project-detail__content">
+            <div class="mmg-project-detail__top">
+                <div>
+                    <span class="mmg-showcase-eyebrow">PROJECT PULSE</span>
+                    <h2>{{ project_showcase.project.project_name }}</h2>
+                    <p>{{ project_showcase.motivation }}</p>
+                </div>
+                <div
+                    class="mmg-progress-ring mmg-progress-ring--large"
+                    style="--project-progress: {{ project_showcase.progress }};"
+                >
+                    <strong>{{ project_showcase.progress_label }}</strong>
+                    <small>progress</small>
+                </div>
+            </div>
+
+            <div class="mmg-project-detail__facts">
+                <div>
+                    <span>Client</span>
+                    <strong>{{ project_showcase.client_name }}</strong>
+                </div>
+                <div>
+                    <span>Tim</span>
+                    <strong>{{ project_showcase.team_name }}</strong>
+                </div>
+                <div>
+                    <span>Lokasi</span>
+                    <strong>{{ project_showcase.location_name }}</strong>
+                </div>
+                <div>
+                    <span>Target</span>
+                    <strong>{{ project_showcase.deadline_label }}</strong>
+                </div>
+            </div>
+
+            <div class="mmg-timeline mmg-timeline--detail">
+                <div class="mmg-timeline__labels">
+                    <span>Realisasi vs timeline</span>
+                    <strong>{{ project_showcase.pace_label }}</strong>
+                </div>
+                <div class="mmg-timeline__track">
+                    <span style="width: {{ project_showcase.progress }}%"></span>
+                    <i style="left: {{ project_showcase.calendar_progress }}%"></i>
+                </div>
+            </div>
+
+            <div class="mmg-project-detail__actions">
+                <a class="mmg-action mmg-action--primary" href="{{ project_showcase.presentation_url }}">
+                    <span class="material-symbols-outlined">co_present</span>
+                    Mode presentasi
+                </a>
+                {% if project_showcase.drawing_url %}
+                    <a
+                        class="mmg-action mmg-action--secondary"
+                        href="{{ project_showcase.drawing_url }}"
+                        target="_blank"
+                    >
+                        <span class="material-symbols-outlined">architecture</span>
+                        Buka drawing
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+{% endif %}

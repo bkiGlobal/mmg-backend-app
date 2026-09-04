@@ -1,0 +1,52 @@
+{% if approval_pipeline %}
+<section class="mmg-insight-panel mmg-approval-pipeline">
+    <header class="mmg-insight-heading">
+        <div>
+            <span>APPROVAL CONTROL</span>
+            <h2>Pipeline approval</h2>
+            <p>{{ approval_pipeline.total }} permintaan pada filter aktif, dikelompokkan berdasarkan tahap keputusan.</p>
+        </div>
+        <span class="material-symbols-outlined">approval</span>
+    </header>
+
+    <div class="mmg-pipeline-stages">
+        {% for stage in approval_pipeline.stages %}
+            <article class="is-{{ stage.tone }}">
+                <span class="material-symbols-outlined">{{ stage.icon }}</span>
+                <div>
+                    <strong>{{ stage.count }}</strong>
+                    <small>{{ stage.label }}</small>
+                </div>
+                {% if not forloop.last %}
+                    <i class="material-symbols-outlined">arrow_forward</i>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
+
+    {% if approval_pipeline.workflows %}
+        <div class="mmg-workflow-breakdown">
+            <div class="mmg-insight-subheading">
+                <h3>Distribusi workflow</h3>
+                <span>Pending · Approved · Rejected</span>
+            </div>
+            {% for workflow in approval_pipeline.workflows %}
+                <article>
+                    <div>
+                        <strong>{{ workflow.label }}</strong>
+                        <small>{{ workflow.total }} permintaan</small>
+                    </div>
+                    <span class="mmg-workflow-track">
+                        <i style="width: {{ workflow.width }}%"></i>
+                    </span>
+                    <div class="mmg-workflow-counts">
+                        <span class="is-warning">{{ workflow.pending }}</span>
+                        <span class="is-success">{{ workflow.approved }}</span>
+                        <span class="is-danger">{{ workflow.rejected }}</span>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+{% endif %}

@@ -1,0 +1,229 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/schedule_calendar.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="flex items-center gap-2 px-4 py-3 text-sm lg:px-8">
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{% url 'admin:index' %}">
+            {% translate "Dashboard" %}
+        </a>
+        <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{{ changelist_url }}">
+            {% translate "Schedules" %}
+        </a>
+        <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+        <span class="font-medium text-font-important-light dark:text-font-important-dark">
+            {% translate "Calendar" %}
+        </span>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="mmg-calendar-page">
+        <header class="mmg-calendar-hero">
+            <div class="mmg-calendar-hero__title">
+                <span class="mmg-calendar-hero__icon material-symbols-outlined">
+                    calendar_month
+                </span>
+                <div>
+                    <p>MMG PROJECT TIMELINE</p>
+                    <h1>Schedule Calendar</h1>
+                    <span>
+                        Pantau periode pekerjaan, deadline, dan status seluruh
+                        proyek dalam satu tampilan.
+                    </span>
+                </div>
+            </div>
+            <div class="mmg-calendar-hero__actions">
+                <a href="{{ list_url }}" class="mmg-calendar-button">
+                    <span class="material-symbols-outlined">table_rows</span>
+                    {% translate "List View" %}
+                </a>
+                {% if has_add_permission %}
+                    <a href="{{ add_url }}" class="mmg-calendar-button is-primary">
+                        <span class="material-symbols-outlined">add</span>
+                        {% translate "New Schedule" %}
+                    </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <section class="mmg-calendar-summary" aria-label="Ringkasan schedule">
+            <article>
+                <span class="material-symbols-outlined">event_note</span>
+                <div><strong>{{ summary.total }}</strong><small>Schedule bulan ini</small></div>
+            </article>
+            <article>
+                <span class="material-symbols-outlined">play_circle</span>
+                <div><strong>{{ summary.active }}</strong><small>Masih aktif</small></div>
+            </article>
+            <article>
+                <span class="material-symbols-outlined">task_alt</span>
+                <div><strong>{{ summary.completed }}</strong><small>Selesai</small></div>
+            </article>
+            <article class="{% if summary.overdue %}has-alert{% endif %}">
+                <span class="material-symbols-outlined">warning</span>
+                <div><strong>{{ summary.overdue }}</strong><small>Perlu perhatian</small></div>
+            </article>
+        </section>
+
+        <section class="mmg-calendar-panel">
+            <div class="mmg-calendar-toolbar">
+                <div class="mmg-month-navigation">
+                    <a href="{{ previous_url }}" title="{% translate 'Previous month' %}">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </a>
+                    <div>
+                        <small>{% translate "Project timeline" %}</small>
+                        <h2>{{ month_label }}</h2>
+                    </div>
+                    <a href="{{ next_url }}" title="{% translate 'Next month' %}">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </a>
+                    <a href="{{ today_url }}" class="mmg-today-button">
+                        {% translate "Today" %}
+                    </a>
+                </div>
+
+                <form method="get" class="mmg-calendar-filters">
+                    <input type="hidden" name="month" value="{{ month_value }}">
+                    <label>
+                        <span>{% translate "Project" %}</span>
+                        <select name="project">
+                            <option value="">{% translate "All projects" %}</option>
+                            {% for project in projects %}
+                                <option value="{{ project.pk }}"
+                                        {% if selected_project_id == project.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ project.project_code }} · {{ project.project_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>{% translate "Status" %}</span>
+                        <select name="status">
+                            <option value="">{% translate "All statuses" %}</option>
+                            {% for value, label in status_choices %}
+                                <option value="{{ value }}"
+                                        {% if selected_status == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <button type="submit">
+                        <span class="material-symbols-outlined">filter_alt</span>
+                        {% translate "Apply" %}
+                    </button>
+                </form>
+            </div>
+
+            {% if selected_project %}
+                <div class="mmg-calendar-scope">
+                    <span class="material-symbols-outlined">apartment</span>
+                    <span>
+                        Menampilkan
+                        <strong>{{ selected_project.project_code }} · {{ selected_project.project_name }}</strong>
+                    </span>
+                    <a href="{{ calendar_url }}?month={{ month_value }}">
+                        {% translate "Clear project filter" %}
+                    </a>
+                </div>
+            {% endif %}
+
+            <div class="mmg-calendar-scroll">
+                <div class="mmg-calendar-shell">
+                    <div class="mmg-calendar-weekdays">
+                    {% for weekday in weekday_labels %}
+                        <div class="mmg-calendar-weekday">{{ weekday }}</div>
+                    {% endfor %}
+                    </div>
+
+                    {% for week in calendar_weeks %}
+                        <div class="mmg-calendar-week"
+                             style="--event-lanes: {{ week.lane_count }};">
+                        {% for cell in week.days %}
+                            <article
+                                class="mmg-calendar-day{% if not cell.in_month %} is-outside{% endif %}{% if cell.is_today %} is-today{% endif %}"
+                                style="grid-column: {{ cell.column }}; grid-row: 1 / span {{ week.row_count }};">
+                                <header>
+                                    <time datetime="{{ cell.date|date:'Y-m-d' }}">
+                                        {{ cell.date.day }}
+                                    </time>
+                                    {% if cell.is_today %}
+                                        <span>{% translate "Today" %}</span>
+                                    {% endif %}
+                                </header>
+                            </article>
+                        {% endfor %}
+
+                        {% for event in week.segments %}
+                            <a href="{{ event.change_url }}"
+                               data-schedule-id="{{ event.schedule.pk }}"
+                               class="mmg-calendar-range is-{{ event.tone }}{% if event.continues_before %} continues-before{% endif %}{% if event.continues_after %} continues-after{% endif %}"
+                               style="grid-column: {{ event.start_column }} / span {{ event.span }}; grid-row: {{ event.row }};"
+                               title="{{ event.schedule.boq_item.document_name }} · {{ event.schedule.get_status_display }} · {{ event.schedule.start_date|date:'d M Y' }}–{{ event.schedule.end_date|date:'d M Y' }}">
+                                <span class="mmg-calendar-range__rail"></span>
+                                {% if event.continues_before %}
+                                    <span class="mmg-calendar-range__continuation material-symbols-outlined">
+                                        chevron_left
+                                    </span>
+                                {% endif %}
+                                <span class="mmg-calendar-range__body">
+                                    <strong>{{ event.schedule.boq_item.document_name }}</strong>
+                                    <small>
+                                        {{ event.schedule.boq_item.project.project_code }}
+                                        · {{ event.schedule.get_status_display }}
+                                    </small>
+                                </span>
+                                {% if event.continues_after %}
+                                    <span class="mmg-calendar-range__continuation material-symbols-outlined">
+                                        chevron_right
+                                    </span>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mmg-calendar-agenda">
+                {% if agenda %}
+                    {% for item in agenda %}
+                        <a class="mmg-calendar-agenda-row is-{{ item.tone }}"
+                           href="{{ item.change_url }}">
+                            <span class="mmg-calendar-agenda-dates">
+                                {% if item.starts_before %}&lsaquo;&nbsp;{% endif %}{{ item.schedule.start_date|date:"j M" }}&nbsp;&ndash;&nbsp;{{ item.schedule.end_date|date:"j M" }}{% if item.ends_after %}&nbsp;&rsaquo;{% endif %}
+                            </span>
+                            <span class="mmg-calendar-agenda-body">
+                                <strong>{{ item.schedule.boq_item.document_name }}</strong>
+                                <small>
+                                    {{ item.schedule.boq_item.project.project_code }}
+                                    &middot; {{ item.schedule.get_status_display }}
+                                </small>
+                            </span>
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <p class="mmg-calendar-agenda-empty">
+                        {% translate "No schedules in this month." %}
+                    </p>
+                {% endif %}
+            </div>
+
+            <footer class="mmg-calendar-legend">
+                <span><i class="is-success"></i> Selesai / disetujui</span>
+                <span><i class="is-warning"></i> Berjalan / menunggu</span>
+                <span><i class="is-danger"></i> Terlambat / dibatalkan</span>
+                <span><i class="is-info"></i> Draft / belum mulai</span>
+            </footer>
+        </section>
+    </div>
+{% endblock %}

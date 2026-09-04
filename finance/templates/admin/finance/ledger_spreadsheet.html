@@ -1,0 +1,202 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static unfold %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/ledger_spreadsheet.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="flex items-center gap-2 px-4 py-3 text-sm lg:px-8">
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{% url 'admin:index' %}">
+            {% translate "Dashboard" %}
+        </a>
+        <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{{ changelist_url }}">
+            {{ opts.verbose_name_plural|capfirst }}
+        </a>
+        <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+        <span class="font-medium text-font-important-light dark:text-font-important-dark">
+            {% translate "Input spreadsheet" %}
+        </span>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="mmg-sheet-page">
+        <div class="mmg-sheet-heading">
+            <div class="mmg-sheet-heading-icon">
+                <span class="material-symbols-outlined">table_view</span>
+            </div>
+            <div>
+                <h1>{{ title }}</h1>
+                <p>{{ spreadsheet_description }}</p>
+            </div>
+        </div>
+
+        <form method="post"
+              enctype="multipart/form-data"
+              id="ledger-spreadsheet-form"
+              novalidate>
+            {% csrf_token %}
+            {{ formset.management_form }}
+
+            {% if formset.non_form_errors %}
+                <div class="mmg-sheet-alert">
+                    <span class="material-symbols-outlined">error</span>
+                    <div>
+                        {% for error in formset.non_form_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="mmg-sheet-toolbar">
+                <div class="mmg-sheet-toolbar-actions">
+                    <button type="button" class="mmg-sheet-button mmg-sheet-button-primary" data-add-row>
+                        <span class="material-symbols-outlined">add</span>
+                        {% translate "Tambah baris" %}
+                    </button>
+                    <button type="button"
+                            class="mmg-sheet-button"
+                            data-fill-down
+                            title="Salin project/ledger, tanggal, tipe, dan metode pembayaran ke baris kosong.">
+                        <span class="material-symbols-outlined">vertical_align_bottom</span>
+                        {% translate "Terapkan Data Baris Pertama" %}
+                    </button>
+                    <label class="mmg-sheet-date-tool">
+                        <span>{% translate "Tanggal semua baris" %}</span>
+                        <input type="date" value="{% now 'Y-m-d' %}" data-bulk-date>
+                    </label>
+                    <button type="button" class="mmg-sheet-button" data-apply-date>
+                        {% translate "Terapkan" %}
+                    </button>
+                </div>
+
+                <div class="mmg-sheet-totals" aria-live="polite">
+                    <div>
+                        <span>{% translate "Baris aktif" %}</span>
+                        <strong data-row-count>0</strong>
+                    </div>
+                    <div>
+                        <span>{% translate "Total debet" %}</span>
+                        <strong data-debet-total>Rp0</strong>
+                    </div>
+                    <div>
+                        <span>{% translate "Total credit" %}</span>
+                        <strong data-credit-total>Rp0</strong>
+                    </div>
+                    <div class="mmg-sheet-net">
+                        <span>{% translate "Selisih" %}</span>
+                        <strong data-net-total>Rp0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mmg-sheet-info">
+                <span class="material-symbols-outlined">info</span>
+                <p>
+                    Pilih <strong>project</strong> atau isi <strong>ledger lain</strong>,
+                    jangan keduanya. Isi hanya salah satu antara debet dan credit.
+                    {% if proof_required %}
+                        Foto bukti wajib pada setiap baris.
+                    {% else %}
+                        Foto bukti bersifat opsional.
+                    {% endif %}
+                    Anda dapat menempel data bertab dari Excel ke sel teks/angka.
+                </p>
+            </div>
+
+            <div class="mmg-sheet-wrap">
+                <table class="mmg-ledger-sheet" id="ledger-sheet">
+                    <thead>
+                        <tr>
+                            <th class="mmg-row-number">#</th>
+                            {% for field in formset.empty_form.visible_fields %}
+                                {% if field.name != "DELETE" %}
+                                    <th data-field="{{ field.name }}">{{ field.label }}</th>
+                                {% endif %}
+                            {% endfor %}
+                            <th class="mmg-row-actions">{% translate "Aksi" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody data-form-rows>
+                        {% for row in formset.forms %}
+                            <tr data-form-row>
+                                <td class="mmg-row-number">
+                                    <span data-row-number>{{ forloop.counter }}</span>
+                                    {% if row.non_field_errors %}
+                                        <span class="material-symbols-outlined mmg-row-error-icon"
+                                              title="{{ row.non_field_errors|join:' ' }}">error</span>
+                                        <div class="mmg-row-error-text">
+                                            {{ row.non_field_errors|join:" " }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                {% for hidden in row.hidden_fields %}{{ hidden }}{% endfor %}
+                                {% for field in row.visible_fields %}
+                                    {% if field.name != "DELETE" %}
+                                        <td data-field="{{ field.name }}"
+                                            {% if field.errors %}class="mmg-cell-error"{% endif %}>
+                                            {{ field }}
+                                            {% for error in field.errors %}
+                                                <span class="mmg-field-error">{{ error }}</span>
+                                            {% endfor %}
+                                        </td>
+                                    {% endif %}
+                                {% endfor %}
+                                <td class="mmg-row-actions">
+                                    {{ row.DELETE.as_hidden }}
+                                    <button type="button"
+                                            class="mmg-delete-row"
+                                            data-delete-row
+                                            title="{% translate 'Hapus baris' %}">
+                                        <span class="material-symbols-outlined">delete</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <template id="ledger-empty-row">
+                <tr data-form-row>
+                    <td class="mmg-row-number">
+                        <span data-row-number></span>
+                    </td>
+                    {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                    {% for field in formset.empty_form.visible_fields %}
+                        {% if field.name != "DELETE" %}
+                            <td data-field="{{ field.name }}">{{ field }}</td>
+                        {% endif %}
+                    {% endfor %}
+                    <td class="mmg-row-actions">
+                        {{ formset.empty_form.DELETE.as_hidden }}
+                        <button type="button"
+                                class="mmg-delete-row"
+                                data-delete-row
+                                title="{% translate 'Hapus baris' %}">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </td>
+                </tr>
+            </template>
+
+            <div class="mmg-sheet-footer">
+                <a href="{{ changelist_url }}" class="mmg-sheet-button">
+                    {% translate "Batal" %}
+                </a>
+                <button type="submit" class="mmg-sheet-button mmg-sheet-button-primary">
+                    <span class="material-symbols-outlined">save</span>
+                    {% translate "Simpan semua transaksi" %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="{% static 'admin/js/ledger_spreadsheet.js' %}"></script>
+{% endblock %}

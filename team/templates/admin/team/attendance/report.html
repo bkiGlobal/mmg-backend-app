@@ -1,0 +1,120 @@
+{% extends "admin/base_site.html" %}
+{% load i18n unfold %}
+
+{% block breadcrumbs %}
+    <div class="flex items-center gap-2 px-4 py-3 text-sm lg:px-8">
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{% url 'admin:index' %}">
+            {% translate "Dashboard" %}
+        </a>
+        <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+        <a class="text-font-subtle-light hover:text-primary-600 dark:text-font-subtle-dark"
+           href="{{ changelist_url }}">
+            {% translate "Attendance" %}
+        </a>
+        <span class="material-symbols-outlined text-base-400 text-sm">chevron_right</span>
+        <span class="font-medium text-font-important-light dark:text-font-important-dark">
+            {% translate "Laporan" %}
+        </span>
+    </div>
+{% endblock %}
+
+{% block content %}
+    {% component "unfold/components/container.html" %}
+        <div class="mx-auto max-w-4xl">
+            <div class="mb-8">
+                <div class="flex items-center gap-3">
+                    <span class="bg-primary-600 flex h-11 items-center justify-center rounded-default text-white w-11">
+                        <span class="material-symbols-outlined">summarize</span>
+                    </span>
+                    <div>
+                        <h1 class="font-semibold text-2xl text-font-important-light dark:text-font-important-dark">
+                            {% translate "Laporan Attendance" %}
+                        </h1>
+                        <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+                            Pilih periode laporan lalu unduh sebagai Excel atau PDF.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {% component "unfold/components/card.html" with title="Parameter laporan" %}
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="bg-red-50 border border-red-200 mb-6 px-4 py-3 rounded-default text-red-700 text-sm dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="grid gap-6 md:grid-cols-2">
+                        <div class="group{% if form.date_from.errors %} errors{% endif %}">
+                            <label class="block font-medium mb-2 text-font-important-light text-sm dark:text-font-important-dark"
+                                   for="{{ form.date_from.id_for_label }}">
+                                {{ form.date_from.label }}
+                            </label>
+                            {{ form.date_from }}
+                            {% for error in form.date_from.errors %}
+                                <p class="mt-2 text-red-600 text-sm">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="group{% if form.date_to.errors %} errors{% endif %}">
+                            <label class="block font-medium mb-2 text-font-important-light text-sm dark:text-font-important-dark"
+                                   for="{{ form.date_to.id_for_label }}">
+                                {{ form.date_to.label }}
+                            </label>
+                            {{ form.date_to }}
+                            {% for error in form.date_to.errors %}
+                                <p class="mt-2 text-red-600 text-sm">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="group mt-6{% if form.output_format.errors %} errors{% endif %}">
+                        <label class="block font-medium mb-2 text-font-important-light text-sm dark:text-font-important-dark"
+                               for="{{ form.output_format.id_for_label }}">
+                            {{ form.output_format.label }}
+                        </label>
+                        <div class="max-w-md">
+                            {{ form.output_format }}
+                        </div>
+                        {% for error in form.output_format.errors %}
+                            <p class="mt-2 text-red-600 text-sm">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="bg-base-50 border border-base-200 mt-6 px-4 py-4 rounded-default dark:bg-white/[.02] dark:border-base-800">
+                        <div class="flex gap-3">
+                            <span class="material-symbols-outlined text-primary-600">info</span>
+                            <div class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+                                <p>
+                                    Cakupan: <strong class="text-font-important-light dark:text-font-important-dark">{{ scope_label }}</strong>
+                                </p>
+                                <p class="mt-1">
+                                    Rentang maksimal 366 hari. Excel berisi sheet detail dan ringkasan;
+                                    PDF disusun sebagai laporan siap cetak.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-base-200 border-t flex flex-col gap-3 justify-end mt-8 pt-6 sm:flex-row dark:border-base-800">
+                        <a class="border border-base-200 font-medium px-4 py-2 rounded-default text-center text-font-default-light text-sm hover:bg-base-50 dark:border-base-700 dark:text-font-default-dark dark:hover:bg-white/[.04]"
+                           href="{{ changelist_url }}">
+                            {% translate "Kembali" %}
+                        </a>
+                        <button class="bg-primary-600 flex font-medium gap-2 items-center justify-center px-4 py-2 rounded-default text-sm text-white hover:bg-primary-700"
+                                type="submit">
+                            <span class="material-symbols-outlined text-[18px]">download</span>
+                            {% translate "Buat & Unduh Laporan" %}
+                        </button>
+                    </div>
+                </form>
+            {% endcomponent %}
+        </div>
+    {% endcomponent %}
+{% endblock %}

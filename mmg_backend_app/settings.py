@@ -15,6 +15,17 @@ import os
 from pathlib import Path
 from decouple import config, Csv
 import dj_database_url
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+
+
+def env_bool(value):
+    """Terima nilai boolean umum serta DEBUG=development/release."""
+    return str(value).strip().lower() in {
+        '1', 'true', 'yes', 'on', 'debug', 'development',
+    }
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,21 +38,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=env_bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
 USE_L10N = True
 USE_THOUSAND_SEPARATOR = True
-LANGUAGE_CODE = 'id'  # atau 'id-ID'
 
 # Application definition
 
 INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
-    'admin_interface',
-    'colorfield',
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
+    'unfold.contrib.inlines',
+    'unfold.contrib.import_export',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -62,7 +75,6 @@ INSTALLED_APPS = [
     'project',
     'team',
     'rest_framework_simplejwt',
-    'nested_admin',
 ]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
@@ -70,15 +82,14 @@ SILENCED_SYSTEM_CHECKS = ["security.W019"]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django_currentuser.middleware.ThreadLocalUserMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_currentuser.middleware.ThreadLocalUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.common.CommonMiddleware",
     "django.middleware.locale.LocaleMiddleware",
 ]
 
@@ -97,14 +108,58 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(
+        minutes=config('JWT_ACCESS_MINUTES', default=60, cast=int)
+    ),
+    'REFRESH_TOKEN_LIFETIME': timedelta(
+        days=config('JWT_REFRESH_DAYS', default=7, cast=int)
+    ),
     'ROTATE_REFRESH_TOKENS': False,
     "TOKEN_OBTAIN_SERIALIZER": "core.serializers.MyTokenObtainPairSerializer",
-  # ...
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = config(
+    'CORS_ALLOW_ALL_ORIGINS',
+    default=DEBUG,
+    cast=bool,
+)
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='',
+    cast=Csv(),
+)
+
+# Default aman untuk production; dapat dioverride pada environment lokal/proxy.
+SECURE_SSL_REDIRECT = config(
+    'SECURE_SSL_REDIRECT',
+    default=not DEBUG,
+    cast=bool,
+)
+SESSION_COOKIE_SECURE = config(
+    'SESSION_COOKIE_SECURE',
+    default=not DEBUG,
+    cast=bool,
+)
+CSRF_COOKIE_SECURE = config(
+    'CSRF_COOKIE_SECURE',
+    default=not DEBUG,
+    cast=bool,
+)
+SECURE_HSTS_SECONDS = config(
+    'SECURE_HSTS_SECONDS',
+    default=0,
+    cast=int,
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    'SECURE_HSTS_INCLUDE_SUBDOMAINS',
+    default=False,
+    cast=bool,
+)
+SECURE_HSTS_PRELOAD = config(
+    'SECURE_HSTS_PRELOAD',
+    default=False,
+    cast=bool,
+)
 
 ROOT_URLCONF = 'mmg_backend_app.urls'
 
@@ -114,7 +169,7 @@ GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH')
 
 MAP_WIDGETS = {
     "GoogleMap": {
-        "apiKey": config('GOOGLE_MAPS_API_KEY', default='AIzaSyDCyRAeo3m5EiItnMTjrdSTvJbBuz9jc_k'),
+        "apiKey": config('GOOGLE_MAPS_API_KEY', default=''),
         "PointField": {
             "interactive": {
                 "mapOptions": {
@@ -137,7 +192,7 @@ DEFF_FETCH_URL_NAME="fetch"
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -192,13 +247,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-# TIME_ZONE = 'UTC'
-
-# Pilih salah satu zona waktu yang mewakili +08:00
-# Contoh untuk WITA (Makassar):
-TIME_ZONE = 'Asia/Singapore'
+LANGUAGE_CODE = 'id'
+TIME_ZONE = 'Asia/Makassar'
 
 USE_I18N = True
 
@@ -208,11 +258,93 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
+# Nama file statis diberi hash isi saat collectstatic sehingga perubahan CSS
+# langsung membatalkan cache browser. Tanpa ini, browser bisa terus memakai
+# stylesheet lama dan menampilkan layout yang sudah tidak berlaku.
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'core.storages.ForgivingManifestStaticFilesStorage',
+    },
+}
+
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATICFILES_DIRS = [
+    BASE_DIR / 'assets',
+    BASE_DIR / 'admin-interface',
+]
 
-# MEDIA_URL = '/media/'
-# MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Tanpa scheduler (server lokal), export diproses langsung saat dibuat agar
+# tidak menggantung di status queued. Di produksi setel False dan jalankan
+# `manage.py process_export_jobs` lewat cron.
+EXPORT_JOBS_RUN_INLINE = config(
+    'EXPORT_JOBS_RUN_INLINE',
+    default=DEBUG,
+    cast=bool,
+)
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Seluruh upload gambar pada AuditModel dikompresi sebelum masuk storage.
+IMAGE_UPLOAD_MAX_WIDTH = config(
+    'IMAGE_UPLOAD_MAX_WIDTH',
+    default=1920,
+    cast=int,
+)
+IMAGE_UPLOAD_MAX_HEIGHT = config(
+    'IMAGE_UPLOAD_MAX_HEIGHT',
+    default=1920,
+    cast=int,
+)
+IMAGE_UPLOAD_QUALITY = config(
+    'IMAGE_UPLOAD_QUALITY',
+    default=82,
+    cast=int,
+)
+
+# File lock mencegah dua eksekusi cron yang sama berjalan bersamaan.
+CRON_LOCK_DIR = config(
+    'CRON_LOCK_DIR',
+    default=os.path.join('/tmp', 'mmg_backend_app_cron'),
+)
+
+# Sebelum MEDIA_ROOT ditetapkan, upload tersimpan langsung di BASE_DIR.
+# Daftar ini hanya dipakai sebagai fallback baca dan sumber migrasi file lama.
+LEGACY_MEDIA_ROOTS = [
+    BASE_DIR,
+]
+LEGACY_MEDIA_DIRECTORIES = [
+    'admin_exports',
+    'attendance',
+    'boq_project',
+    'default_photo',
+    'defect_project',
+    'document_project',
+    'drawing_project',
+    'error_proof_photo',
+    'expense_proof_photo',
+    'finance_proof_photo',
+    'id_worker',
+    'income_proof_photo',
+    'initial_photo',
+    'leave_request',
+    'material',
+    'material_project',
+    'payment_proof_photo',
+    'payment_request_project',
+    'petty_cash_proof_photo',
+    'profile_photo',
+    'schedule_attachment_photo',
+    'signature_photo',
+    'signature_proof_photo',
+    'tool',
+    'weekly_report_attachment_photo',
+    'work_method_photo',
+]
 
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
@@ -223,3 +355,259 @@ STATICFILES_FINDERS = [
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+UNFOLD = {
+    'SITE_TITLE': 'MMG Administration',
+    'SITE_HEADER': 'MMG Construction',
+    'SITE_SUBHEADER': 'Project Operations & Finance',
+    'SITE_URL': '/',
+    'SITE_SYMBOL': 'construction',
+    # Header sidebar Unfold selalu berlatar gelap, termasuk pada tema terang,
+    # sehingga logo bertinta putih dipakai untuk kedua tema.
+    'SITE_ICON': lambda request: static('logo/MMG_MARK_WHITE.png'),
+    'SITE_FAVICONS': [
+        {
+            'rel': 'icon',
+            'type': 'image/png',
+            'href': lambda request: static(
+                'favicon/MMG_PNG_WHITE.png'
+            ),
+        },
+    ],
+    'SHOW_HISTORY': True,
+    'SHOW_VIEW_ON_SITE': True,
+    'DASHBOARD_CALLBACK': 'core.dashboard.dashboard_callback',
+    'STYLES': [
+        lambda request: static('admin/mmg_admin.css'),
+    ],
+    'COLORS': {
+        'base': {
+            '50': 'oklch(98.5% 0 0)',
+            '100': 'oklch(96.7% 0 0)',
+            '200': 'oklch(92.2% 0 0)',
+            '300': 'oklch(87% 0 0)',
+            '400': 'oklch(70.8% 0 0)',
+            '500': 'oklch(55.6% 0 0)',
+            '600': 'oklch(43.9% 0 0)',
+            '700': 'oklch(37.1% 0 0)',
+            '800': 'oklch(26.9% 0 0)',
+            '900': 'oklch(20.5% 0 0)',
+            '950': 'oklch(12.8% 0 0)',
+        },
+        'primary': {
+            '50': 'oklch(98.7% .022 95.277)',
+            '100': 'oklch(96.2% .059 95.617)',
+            '200': 'oklch(92.4% .12 95.746)',
+            '300': 'oklch(87.9% .169 91.605)',
+            '400': 'oklch(82.8% .189 84.429)',
+            '500': 'oklch(76.9% .188 70.08)',
+            '600': 'oklch(66.6% .179 58.318)',
+            '700': 'oklch(55.5% .163 48.998)',
+            '800': 'oklch(47.3% .137 46.201)',
+            '900': 'oklch(41.4% .112 45.904)',
+            '950': 'oklch(27.9% .077 45.635)',
+        },
+    },
+    'COMMAND': {
+        'search_models': True,
+        'show_history': True,
+    },
+    'SIDEBAR': {
+        'show_search': True,
+        'command_search': True,
+        'show_all_applications': True,
+        'navigation': [
+            {
+                'title': _('Ringkasan'),
+                'separator': True,
+                'items': [
+                    {
+                        'title': _('Dashboard'),
+                        'icon': 'dashboard',
+                        'link': reverse_lazy('admin:index'),
+                    },
+                    {
+                        'title': _('Approval Queue'),
+                        'icon': 'approval',
+                        'link': reverse_lazy(
+                            'admin:core_approvalrequest_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Notifikasi'),
+                        'icon': 'notifications',
+                        'link': reverse_lazy(
+                            'admin:team_notifications_changelist'
+                        ),
+                    },
+                ],
+            },
+            {
+                'title': _('Operasional'),
+                'separator': True,
+                'items': [
+                    {
+                        'title': _('Projects'),
+                        'icon': 'apartment',
+                        'link': reverse_lazy(
+                            'admin:project_project_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Documents'),
+                        'icon': 'folder_open',
+                        'link': reverse_lazy(
+                            'admin:project_document_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Schedules'),
+                        'icon': 'calendar_month',
+                        'link': reverse_lazy(
+                            'admin:project_schedule_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Progress Reports'),
+                        'icon': 'ssid_chart',
+                        'link': reverse_lazy(
+                            'admin:project_progressreport_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Materials'),
+                        'icon': 'inventory_2',
+                        'link': reverse_lazy(
+                            'admin:inventory_material_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Project Stock'),
+                        'icon': 'inventory',
+                        'link': reverse_lazy(
+                            'admin:inventory_materialonproject_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Tools'),
+                        'icon': 'construction',
+                        'link': reverse_lazy(
+                            'admin:inventory_tool_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Purchase Requests'),
+                        'icon': 'shopping_cart',
+                        'link': reverse_lazy(
+                            'admin:inventory_purchaserequest_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Tool Maintenance'),
+                        'icon': 'build',
+                        'link': reverse_lazy(
+                            'admin:inventory_toolmaintenance_changelist'
+                        ),
+                    },
+                ],
+            },
+            {
+                'title': _('Keuangan'),
+                'separator': True,
+                'items': [
+                    {
+                        'title': _('Finance Ledger'),
+                        'icon': 'account_balance',
+                        'link': reverse_lazy(
+                            'admin:finance_financedata_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Petty Cash'),
+                        'icon': 'payments',
+                        'link': reverse_lazy(
+                            'admin:finance_pettycash_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Bill of Quantities'),
+                        'icon': 'calculate',
+                        'link': reverse_lazy(
+                            'admin:finance_billofquantity_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Payment Requests'),
+                        'icon': 'request_quote',
+                        'link': reverse_lazy(
+                            'admin:finance_paymentrequest_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Expenses'),
+                        'icon': 'receipt_long',
+                        'link': reverse_lazy(
+                            'admin:finance_expenseonproject_changelist'
+                        ),
+                    },
+                ],
+            },
+            {
+                'title': _('Tim & Absensi'),
+                'separator': True,
+                'items': [
+                    {
+                        'title': _('Attendance'),
+                        'icon': 'schedule',
+                        'link': reverse_lazy(
+                            'admin:team_attendance_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Leave Requests'),
+                        'icon': 'event_busy',
+                        'link': reverse_lazy(
+                            'admin:team_leaverequest_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Profiles'),
+                        'icon': 'groups',
+                        'link': reverse_lazy(
+                            'admin:team_profile_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Work Policies'),
+                        'icon': 'policy',
+                        'link': reverse_lazy(
+                            'admin:team_workpolicy_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Holidays'),
+                        'icon': 'event_available',
+                        'link': reverse_lazy(
+                            'admin:team_holiday_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Locations'),
+                        'icon': 'location_on',
+                        'link': reverse_lazy(
+                            'admin:core_location_changelist'
+                        ),
+                    },
+                    {
+                        'title': _('Export Jobs'),
+                        'icon': 'download',
+                        'link': reverse_lazy(
+                            'admin:core_dataexportjob_changelist'
+                        ),
+                    },
+                ],
+            },
+        ],
+    },
+}

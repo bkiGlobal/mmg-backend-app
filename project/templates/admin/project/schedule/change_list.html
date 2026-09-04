@@ -1,0 +1,13 @@
+{% extends "admin/change_list.html" %}
+{% load i18n unfold %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+
+    {% if calendar_url %}
+        {% component "unfold/components/button.html" with href=calendar_url variant="default" %}
+            <span class="material-symbols-outlined md-18">calendar_month</span>
+            {% translate "Calendar View" %}
+        {% endcomponent %}
+    {% endif %}
+{% endblock %}

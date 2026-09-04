@@ -2,9 +2,38 @@ from rest_framework import status, viewsets
 from .models import *
 from .serializers import *
 from rest_framework.response import Response
+from django.db import transaction
 from django.db.models import Q
+from core.permissions import (
+    MANAGEMENT_ROLES,
+    PROJECT_WRITE_ROLES,
+    ProjectScopedQuerysetMixin,
+    RoleBasedPermission,
+    has_any_role,
+)
 
-class ProjectModelViewSet(viewsets.ModelViewSet):
+
+def normalize_foreign_keys(payload, field_names):
+    if hasattr(payload, 'getlist'):
+        normalized = {key: payload.get(key) for key in payload.keys()}
+    else:
+        normalized = dict(payload)
+    for field_name in field_names:
+        id_field = f'{field_name}_id'
+        if field_name in normalized and id_field not in normalized:
+            normalized[id_field] = normalized.pop(field_name)
+    return normalized
+
+
+class ProjectAccessViewSet(
+    ProjectScopedQuerysetMixin, viewsets.ModelViewSet
+):
+    permission_classes = [RoleBasedPermission]
+    write_roles = PROJECT_WRITE_ROLES
+
+
+class ProjectModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'pk'
     queryset = Project.objects.all()
     
     def get_queryset(self):
@@ -18,7 +47,7 @@ class ProjectModelViewSet(viewsets.ModelViewSet):
             project_status = self.request.query_params.get('project_status', None)
             client = self.request.query_params.get('client', None)
             team = self.request.query_params.get('team', None)
-            start_date = self.request.query_params.get('project_status', None)
+            start_date = self.request.query_params.get('start_date', None)
             end_date = self.request.query_params.get('end_date', None)
             query = Q()
             if search_query:
@@ -43,7 +72,30 @@ class ProjectModelViewSet(viewsets.ModelViewSet):
             return ProjectSimpleSerializer
         return ProjectSerializer
 
-class DocumentModelViewSet(viewsets.ModelViewSet):
+    def create(self, request, *args, **kwargs):
+        if not has_any_role(
+            request.user,
+            MANAGEMENT_ROLES | {'sales', 'project_admin'},
+        ):
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied(
+                'Hanya management, sales, atau project admin '
+                'yang dapat membuat proyek.'
+            )
+        data = normalize_foreign_keys(
+            request.data, ('location', 'client', 'team')
+        )
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        project = serializer.instance
+        return Response(
+            self.get_serializer(project).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+class DocumentModelViewSet(ProjectAccessViewSet):
     queryset = Document.objects.all()
     
     def get_queryset(self):
@@ -67,15 +119,18 @@ class DocumentModelViewSet(viewsets.ModelViewSet):
             if document_type:
                 query &= Q(document_type=document_type)
             if status_:
-                status_ &= Q(status=status_)
+                query &= Q(status=status_)
             if issue_date:
-                issue_date &= Q(issue_date=issue_date)
+                query &= Q(issue_date=issue_date)
             if due_date:
-                due_date &= Q(due_date=due_date)
-            if approval_required:
-                approval_required &= Q(approval_required=approval_required)
+                query &= Q(due_date=due_date)
+            if approval_required is not None:
+                query &= Q(
+                    approval_required=approval_required.lower()
+                    in ('true', '1', 't')
+                )
             if approval_level:
-                approval_level &= Q(approval_level=approval_level)
+                query &= Q(approval_level=approval_level)
             queryset = queryset.filter(query).distinct()
         return queryset
         
@@ -87,27 +142,49 @@ class DocumentModelViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         versions = request.data.get('versions', [])
         document_signatures = request.data.get('document_signatures', [])
-        request.data.pop('versions', None)
-        request.data.pop('document_signatures', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            document = serializer.save()
+        data = request.data.copy()
+        data.pop('versions', None)
+        data.pop('document_signatures', None)
+        data = normalize_foreign_keys(
+            data, ('project', 'document_type')
+        )
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            self.perform_create(serializer)
+            document = serializer.instance
             for version in versions:
-                DocumentVersion.objects.create(document=document, **version)
+                version_data = dict(version)
+                version_data['document'] = document.pk
+                child = DocumentVersionSerializer(data=version_data)
+                child.is_valid(raise_exception=True)
+                child.save()
             for signature in document_signatures:
-                SignatureOnDocument.objects.create(document=document, **signature)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                signature_data = normalize_foreign_keys(
+                    signature, ('signature',)
+                )
+                signature_data['document'] = document.pk
+                child = SignatureOnDocumentSerializer(
+                    data=signature_data
+                )
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(document).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class DocumentVersionModelViewSet(viewsets.ModelViewSet):
+class DocumentVersionModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'document__project_id'
     queryset = DocumentVersion.objects.all()
     serializer_class = DocumentVersionSerializer
     
-class SignatureOnDocumentModelViewSet(viewsets.ModelViewSet):
+class SignatureOnDocumentModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'document__project_id'
     queryset = SignatureOnDocument.objects.all()
     serializer_class = SignatureOnDocumentSerializer
 
-class DrawingModelViewSet(viewsets.ModelViewSet):
+class DrawingModelViewSet(ProjectAccessViewSet):
     queryset = Drawing.objects.all()
 
     def get_queryset(self):
@@ -115,12 +192,12 @@ class DrawingModelViewSet(viewsets.ModelViewSet):
         queryset = queryset.select_related('project', 'drawing_type') \
                            .prefetch_related('drawing_versions', 'drawing_signatures')
         if self.action == 'list':
-            search_query = request.query_params.get('search_query', None)
-            project = request.query_params.get('project', None)
-            drawing_type = request.query_params.get('drawing_type', None)
-            status_ = request.query_params.get('status', None)
-            issue_date = request.query_params.get('issue_date', None)
-            due_date = request.query_params.get('due_date', None)
+            search_query = self.request.query_params.get('search_query', None)
+            project = self.request.query_params.get('project', None)
+            drawing_type = self.request.query_params.get('drawing_type', None)
+            status_ = self.request.query_params.get('status', None)
+            issue_date = self.request.query_params.get('issue_date', None)
+            due_date = self.request.query_params.get('due_date', None)
             query = Q()
             if search_query:
                 query &= Q(document_name__icontains=search_query) | Q(project__project_name__icontains=search_query)
@@ -145,27 +222,49 @@ class DrawingModelViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         drawing_versions = request.data.get('drawing_versions', [])
         drawing_signatures = request.data.get('drawing_signatures', [])
-        request.data.pop('drawing_versions', None)
-        request.data.pop('drawing_signatures', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            drawing = serializer.save()
+        data = request.data.copy()
+        data.pop('drawing_versions', None)
+        data.pop('drawing_signatures', None)
+        data = normalize_foreign_keys(
+            data, ('project', 'drawing_type')
+        )
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            self.perform_create(serializer)
+            drawing = serializer.instance
             for version in drawing_versions:
-                DrawingVersion.objects.create(drawing=drawing, **version)
+                version_data = dict(version)
+                version_data['drawing'] = drawing.pk
+                child = DrawingVersionSerializer(data=version_data)
+                child.is_valid(raise_exception=True)
+                child.save()
             for signature in drawing_signatures:
-                SignatureOnDrawing.objects.create(document=drawing, **signature)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                signature_data = normalize_foreign_keys(
+                    signature, ('signature',)
+                )
+                signature_data['document'] = drawing.pk
+                child = SignatureOnDrawingSerializer(
+                    data=signature_data
+                )
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(drawing).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class DrawingVersionModelViewSet(viewsets.ModelViewSet):
+class DrawingVersionModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'drawing__project_id'
     queryset = DrawingVersion.objects.all()
     serializer_class = DrawingVersionSerializer
     
-class SignatureOnDrawingModelViewSet(viewsets.ModelViewSet):
+class SignatureOnDrawingModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'document__project_id'
     queryset = SignatureOnDrawing.objects.all()
     serializer_class = SignatureOnDrawingSerializer
     
-class DefectModelViewSet(viewsets.ModelViewSet):
+class DefectModelViewSet(ProjectAccessViewSet):
     queryset = Defect.objects.all()
     
     def get_queryset(self):
@@ -182,8 +281,10 @@ class DefectModelViewSet(viewsets.ModelViewSet):
                 query &= Q(work_title__icontains=search_query) | Q(project__project_name__icontains=search_query)
             if project:
                 query &= Q(project=project)
-            if is_approved:
-                query &= Q(is_approved=is_approved)
+            if is_approved is not None:
+                query &= Q(
+                    is_approved=is_approved.lower() in ('true', '1', 't')
+                )
             if approved_at:
                 query &= Q(approved_at=approved_at)
             queryset = queryset.filter(query).distinct()
@@ -197,27 +298,53 @@ class DefectModelViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         defect_detail = request.data.get('defect_detail', [])
         defect_signature = request.data.get('defect_signature', [])
-        request.data.pop('defect_detail', None)
-        request.data.pop('defect_signature', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            defect = serializer.save()
+        data = request.data.copy()
+        data.pop('defect_detail', None)
+        data.pop('defect_signature', None)
+        data = normalize_foreign_keys(data, ('project',))
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            self.perform_create(serializer)
+            defect = serializer.instance
             for detail in defect_detail:
-                DefectDetail.objects.create(deflect=defect, **detail)
+                detail_data = normalize_foreign_keys(
+                    detail,
+                    (
+                        'initial_checklist_approval',
+                        'final_checklist_approval',
+                    ),
+                )
+                detail_data['deflect'] = defect.pk
+                child = DefectDetailSerializer(data=detail_data)
+                child.is_valid(raise_exception=True)
+                child.save()
             for signature in defect_signature:
-                SignatureOnDeflect.objects.create(deflect=defect, **signature)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                signature_data = normalize_foreign_keys(
+                    signature, ('signature',)
+                )
+                signature_data['deflect'] = defect.pk
+                child = SignatureOnDeflectSerializer(
+                    data=signature_data
+                )
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(defect).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class DefectDetailModelViewSet(viewsets.ModelViewSet):
+class DefectDetailModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'deflect__project_id'
     queryset = DefectDetail.objects.all()
     serializer_class = DefectDetailSerializer
     
-class SignatureOnDeflectModelViewSet(viewsets.ModelViewSet):
+class SignatureOnDeflectModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'deflect__project_id'
     queryset = SignatureOnDeflect.objects.all()
     serializer_class = SignatureOnDeflectSerializer
     
-class ErrorLogModelViewSet(viewsets.ModelViewSet):
+class ErrorLogModelViewSet(ProjectAccessViewSet):
     queryset = ErrorLog.objects.all()
 
     def get_queryset(self):
@@ -236,7 +363,7 @@ class ErrorLogModelViewSet(viewsets.ModelViewSet):
             if project:
                 query &= Q(project=project)
             if error_type:
-                query &= Q(error_type=error_type)
+                query &= Q(work_type=error_type)
             if periode_start:
                 query &= Q(periode_start=periode_start)
             if periode_end:
@@ -244,30 +371,53 @@ class ErrorLogModelViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(query).distinct()
         return queryset
 
-    def post(self, request):
+    def create(self, request, *args, **kwargs):
         error_detail = request.data.get('error_detail', [])
         error_log_signature = request.data.get('error_log_signature', [])
-        request.data.pop('error_detail', None)
-        request.data.pop('error_log_signature', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            error_log = serializer.save()
+        data = request.data.copy()
+        data.pop('error_detail', None)
+        data.pop('error_log_signature', None)
+        data = normalize_foreign_keys(
+            data, ('project', 'work_type')
+        )
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            self.perform_create(serializer)
+            error_log = serializer.instance
             for detail in error_detail:
-                ErrorLogDetail.objects.create(error=error_log, **detail)
+                detail_data = dict(detail)
+                detail_data['error'] = error_log.pk
+                child = ErrorLogDetailSerializer(data=detail_data)
+                child.is_valid(raise_exception=True)
+                child.save()
             for signature in error_log_signature:
-                SignatureOnErrorLog.objects.create(error=error_log, **signature)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                signature_data = normalize_foreign_keys(
+                    signature, ('signature',)
+                )
+                signature_data['error'] = error_log.pk
+                child = SignatureOnErrorLogSerializer(
+                    data=signature_data
+                )
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(error_log).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class ErrorLogDetailModelViewSet(viewsets.ModelViewSet):
+class ErrorLogDetailModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'error__project_id'
     queryset = ErrorLogDetail.objects.all()
     serializer_class = ErrorLogDetailSerializer
     
-class SignatureOnErrorLogModelViewSet(viewsets.ModelViewSet):
+class SignatureOnErrorLogModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'error__project_id'
     queryset = SignatureOnErrorLog.objects.all()
     serializer_class = SignatureOnErrorLogSerializer
 
-class ScheduleModelViewSet(viewsets.ModelViewSet):
+class ScheduleModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'boq_item__project_id'
     queryset = Schedule.objects.all()
     
     def get_queryset(self):
@@ -282,7 +432,10 @@ class ScheduleModelViewSet(viewsets.ModelViewSet):
             end_date = self.request.query_params.get('end_date', None)
             query = Q()
             if search_query:
-                query &= Q(boq_item__description__icontains=search_query) | Q(notes__icontains=search_query)
+                query &= (
+                    Q(boq_item__document_name__icontains=search_query)
+                    | Q(notes__icontains=search_query)
+                )
             if duration_type:
                 query &= Q(duration_type=duration_type)
             if status_:
@@ -299,22 +452,38 @@ class ScheduleModelViewSet(viewsets.ModelViewSet):
             return ScheduleSimpleSerializer
         return ScheduleSerializer
 
-    def post(self, request):
+    def create(self, request, *args, **kwargs):
         schedule_signature = request.data.get('schedule_signature', [])
-        request.data.pop('schedule_signature', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            schedule = serializer.save()
+        data = request.data.copy()
+        data.pop('schedule_signature', None)
+        data = normalize_foreign_keys(data, ('boq_item',))
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            self.perform_create(serializer)
+            schedule = serializer.instance
             for signature in schedule_signature:
-                SignatureOnSchedule.objects.create(schedule=schedule, **signature)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                signature_data = normalize_foreign_keys(
+                    signature, ('signature',)
+                )
+                signature_data['schedule'] = schedule.pk
+                child = SignatureOnScheduleSerializer(
+                    data=signature_data
+                )
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(schedule).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class SignatureOnScheduleModelViewSet(viewsets.ModelViewSet):
+class SignatureOnScheduleModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'schedule__boq_item__project_id'
     queryset = SignatureOnSchedule.objects.all()
     serializer_class = SignatureOnScheduleSerializer
 
-class ProgressReportModelViewSet(viewsets.ModelViewSet):
+class ProgressReportModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'boq_item__project_id'
     queryset = ProgressReport.objects.all()
     serializer_class = ProgressReportSerializer
             
@@ -322,26 +491,40 @@ class ProgressReportModelViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset().order_by('-created_at')
         queryset = queryset.select_related('boq_item', )
         if self.action == 'list':
-            search_query = request.query_params.get('search_query', None)
-            progress_number = request.query_params.get('progress_number', None)
-            type = request.query_params.get('type', None)
-            report_date = request.query_params.get('report_date', None)
-            progress_percentage = request.query_params.get('progress_percentage', None)
+            search_query = self.request.query_params.get('search_query', None)
+            progress_number = self.request.query_params.get('progress_number', None)
+            report_type = self.request.query_params.get('type', None)
+            report_date = self.request.query_params.get('report_date', None)
+            progress_percentage = self.request.query_params.get('progress_percentage', None)
             query = Q()
             if search_query:
-                query &= Q(boq_item__description__icontains=search_query) | Q(notes__icontains=search_query)
+                query &= (
+                    Q(boq_item__document_name__icontains=search_query)
+                    | Q(notes__icontains=search_query)
+                )
             if progress_number:
                 query &= Q(progress_number=progress_number)
-            if type:
-                query &= Q(type=type)
+            if report_type:
+                query &= Q(type=report_type)
             if report_date:
                 query &= Q(report_date=report_date)
             if progress_percentage:
                 query &= Q(progress_percentage=progress_percentage)
             queryset = queryset.filter(query).distinct()
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        data = normalize_foreign_keys(request.data, ('boq_item',))
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        report = serializer.instance
+        return Response(
+            self.get_serializer(report).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class WorkMethodModelViewSet(viewsets.ModelViewSet):
+class WorkMethodModelViewSet(ProjectAccessViewSet):
     queryset = WorkMethod.objects.all()
     
     def get_queryset(self):
@@ -366,15 +549,30 @@ class WorkMethodModelViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         work_method_signature = request.data.get('work_method_signature', [])
-        request.data.pop('work_method_signature', None)
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            work_method = serializer.save()
+        data = request.data.copy()
+        data.pop('work_method_signature', None)
+        data = normalize_foreign_keys(data, ('project',))
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            self.perform_create(serializer)
+            work_method = serializer.instance
             for signature in work_method_signature:
-                SignatureOnWorkMethod.objects.create(work_method=work_method, **signature)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                signature_data = normalize_foreign_keys(
+                    signature, ('signature',)
+                )
+                signature_data['work_method'] = work_method.pk
+                child = SignatureOnWorkMethodSerializer(
+                    data=signature_data
+                )
+                child.is_valid(raise_exception=True)
+                child.save()
+        return Response(
+            self.get_serializer(work_method).data,
+            status=status.HTTP_201_CREATED,
+        )
     
-class SignatureOnWorkMethodModelViewSet(viewsets.ModelViewSet):
+class SignatureOnWorkMethodModelViewSet(ProjectAccessViewSet):
+    project_lookup = 'work_method__project_id'
     queryset = SignatureOnWorkMethod.objects.all()
     serializer_class = SignatureOnWorkMethodSerializer
