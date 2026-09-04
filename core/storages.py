@@ -1,9 +1,11 @@
 """Storage backend untuk file statis."""
 
-from django.contrib.staticfiles.storage import ManifestStaticFilesStorage
+from whitenoise.storage import CompressedManifestStaticFilesStorage
 
 
-class ForgivingManifestStaticFilesStorage(ManifestStaticFilesStorage):
+class ForgivingManifestStaticFilesStorage(
+    CompressedManifestStaticFilesStorage
+):
     """
     Manifest storage yang tidak menggagalkan request ketika manifest kosong.
 

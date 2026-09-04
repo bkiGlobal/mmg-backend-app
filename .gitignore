@@ -29,3 +29,7 @@ payment_proof_photo
 __pycache__/
 *.py[cod]
 private_backups/
+
+# Metadata Finder macOS, termasuk AppleDouble pada drive eksternal/exFAT.
+.DS_Store
+._*

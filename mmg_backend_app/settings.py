@@ -82,6 +82,10 @@ SILENCED_SYSTEM_CHECKS = ["security.W019"]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise melayani berkas statis langsung dari proses aplikasi. Tanpa
+    # ini admin kehilangan seluruh CSS saat DEBUG=False, karena helper
+    # static() pada urls.py tidak aktif di luar mode debug.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -129,6 +133,21 @@ CORS_ALLOWED_ORIGINS = config(
     cast=Csv(),
 )
 
+# Ketika TLS diterminasi reverse proxy (nginx, Traefik, load balancer), Django
+# hanya melihat permintaan HTTP biasa. Tanpa header ini SECURE_SSL_REDIRECT
+# akan mengarahkan ulang tanpa henti. Aktifkan hanya bila proxy di depannya
+# benar-benar menyetel X-Forwarded-Proto, karena header ini dapat dipalsukan
+# bila aplikasi terekspos langsung ke internet.
+if config('USE_X_FORWARDED_PROTO', default=False, cast=env_bool):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# CSRF perlu tahu origin publik ketika aplikasi diakses lewat domain HTTPS.
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='',
+    cast=Csv(),
+)
+
 # Default aman untuk production; dapat dioverride pada environment lokal/proxy.
 SECURE_SSL_REDIRECT = config(
     'SECURE_SSL_REDIRECT',
@@ -163,8 +182,11 @@ SECURE_HSTS_PRELOAD = config(
 
 ROOT_URLCONF = 'mmg_backend_app.urls'
 
-GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH') 
-GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH')
+# Path eksplisit hanya dibutuhkan di macOS/Homebrew. Pada Linux, termasuk di
+# dalam image Docker, GeoDjango menemukan pustakanya sendiri berdasarkan nama
+# sehingga nilai kosong membuat setelan ini portabel lintas arsitektur.
+GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH', default=None)
+GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH', default=None)
 
 
 MAP_WIDGETS = {

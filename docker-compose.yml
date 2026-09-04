@@ -1,0 +1,78 @@
+# Susunan satu server untuk backend MMG.
+#
+#   db         PostgreSQL + PostGIS
+#   web        gunicorn menyajikan Django dan berkas statis lewat WhiteNoise
+#   scheduler  pengganti cron; menjalankan otomasi harian dan antrean export
+#
+# Salin deploy/.env.docker.example menjadi .env lalu isi nilainya sebelum
+# menjalankan `docker compose up -d --build`.
+
+name: mmg-backend
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mmg}
+      POSTGRES_USER: ${POSTGRES_USER:-mmg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Layanan web menunggu status ini agar migrasi tidak dijalankan sebelum
+      # PostgreSQL benar-benar menerima koneksi.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mmg} -d ${POSTGRES_DB:-mmg}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RUN_MIGRATIONS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Unggahan harus bertahan di luar siklus hidup kontainer.
+      - media-data:/app/media
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+
+  scheduler:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Hanya layanan web yang bermigrasi, agar tidak ada dua proses yang
+      # mengubah skema pada saat bersamaan.
+      RUN_MIGRATIONS: "0"
+      # Antrean diproses scheduler, jadi permintaan export tidak boleh
+      # dikerjakan inline oleh proses web.
+      EXPORT_JOBS_RUN_INLINE: "False"
+    depends_on:
+      db:
+        condition: service_healthy
+      # Web baru sehat setelah entrypoint menyelesaikan migrasi dan Gunicorn
+      # menerima request. Ini mencegah scheduler menyentuh tabel terlalu dini.
+      web:
+        condition: service_healthy
+    volumes:
+      - media-data:/app/media
+    command: ["deploy/scheduler.sh"]
+    # HEALTHCHECK bawaan image memeriksa Gunicorn pada port 8000. Scheduler
+    # memang tidak menjalankan server HTTP, jadi pemeriksaan itu tidak berlaku.
+    healthcheck:
+      disable: true
+
+volumes:
+  postgres-data:
+  media-data:

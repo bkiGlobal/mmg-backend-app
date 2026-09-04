@@ -1,0 +1,68 @@
+# Rahasia: environment diberikan saat runtime lewat env_file, bukan dipanggang
+# ke dalam image.
+.env
+.env.*
+!deploy/.env.docker.example
+
+# Virtualenv lokal dan artefak Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Riwayat dan perkakas pengembangan
+.git/
+.gitignore
+.github/
+.qodo/
+.vscode/
+.idea/
+
+# Hasil collectstatic dibuat ulang saat build; media adalah volume runtime.
+static/
+media/
+
+# Berkas unggahan dan cadangan tidak boleh masuk image
+private_backups/
+database-backups/
+attendance/
+# Satu-satunya aset yang boleh dibundel dari folder media lama. Entrypoint
+# menyalinnya ke volume media baru bila file default belum tersedia.
+default_photo/*
+!default_photo/default_profile.png
+document_project/
+expense_proof_photo/
+finance_proof_photo/
+id_worker/
+income_proof_photo/
+initial_photo/
+leave_request/
+material/
+material_project/
+boq_project/
+payment_proof_photo/
+petty_cash_proof_photo/
+profile_photo/
+schedule_attachment_photo/
+signature_photo/
+signature_proof_photo/
+tool/
+weekly_report_attachment_photo/
+work_method_photo/
+error_proof_photo/
+payment_request_project/
+defect_project/
+drawing_project/
+
+# Arsip dan berkas besar lain
+*.zip
+*.sqlite3
+*.log
+
+# Sampah metadata macOS pada filesystem exFAT
+.DS_Store
+._*

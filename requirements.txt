@@ -1,4 +1,5 @@
 asgiref==3.8.1
+Brotli==1.1.0
 certifi==2025.4.26
 cffi==1.17.1
 charset-normalizer==3.4.2
@@ -14,6 +15,7 @@ django-unfold==0.80.1
 Django==5.2.1
 djangorestframework-simplejwt==5.5.0
 djangorestframework==3.16.0
+gunicorn==23.0.0
 holidays==0.63
 idna==3.10
 openpyxl==3.1.5
@@ -30,3 +32,4 @@ sqlparse==0.5.3
 text-unidecode==1.3
 typing_extensions==4.13.2
 urllib3==2.4.0
+whitenoise==6.8.2
