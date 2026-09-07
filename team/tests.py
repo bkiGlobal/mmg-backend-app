@@ -1329,7 +1329,16 @@ class SimplifiedAttendanceWorkflowTests(TestCase):
         )
         self.assertContains(
             response,
+            static('admin/js/attendance_geolocation.js'),
+        )
+        self.assertContains(
+            response,
             static('admin/js/attendance_camera.js'),
+        )
+        content = response.content.decode()
+        self.assertLess(
+            content.index(static('admin/js/attendance_geolocation.js')),
+            content.index(static('admin/js/attendance_camera.js')),
         )
         self.assertContains(
             response,

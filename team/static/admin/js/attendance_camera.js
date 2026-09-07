@@ -4,6 +4,7 @@
   const CAMERA_SELECTOR = '[data-mmg-camera-required="true"]';
   const MAX_IMAGE_WIDTH = 1280;
   const JPEG_QUALITY = 0.9;
+  const MAX_REUSABLE_LOCATION_AGE = 60000;
 
   function createElement(tagName, className, text) {
     const element = document.createElement(tagName);
@@ -47,6 +48,8 @@
     );
     let facingMode = input.dataset.mmgCameraFacingMode || "user";
     let stream = null;
+    let locationRequest = null;
+    let latestPosition = null;
 
     const camera = createElement("section", "mmg-camera");
     camera.setAttribute("aria-label", label);
@@ -205,7 +208,20 @@
         video.setAttribute("data-facing-mode", facingMode);
         await video.play();
         showReadyState();
-        setStatus("Kamera aktif. Posisikan wajah lalu tekan Ambil foto.");
+        setStatus("Kamera aktif. Sedang menyiapkan lokasi...");
+        prepareLocation()
+          .then(() => {
+            if (stream) {
+              setStatus(
+                "Kamera dan lokasi siap. Posisikan wajah lalu tekan Ambil foto."
+              );
+            }
+          })
+          .catch((error) => {
+            if (stream) {
+              setStatus(error.message, "error");
+            }
+          });
       } catch (error) {
         showIdleState();
         const permissionDenied =
@@ -225,50 +241,41 @@
       }
     }
 
-    function getCurrentLocation() {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(
-            new Error("Geolocation tidak didukung oleh browser ini.")
-          );
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          (error) => {
-            if (error.code === error.PERMISSION_DENIED) {
-              reject(
-                new Error(
-                  "Izin lokasi ditolak. Aktifkan izin lokasi pada pengaturan browser."
-                )
-              );
-            } else if (error.code === error.POSITION_UNAVAILABLE) {
-              reject(
-                new Error(
-                  "Lokasi terkini tidak tersedia. Aktifkan GPS lalu coba kembali."
-                )
-              );
-            } else if (error.code === error.TIMEOUT) {
-              reject(
-                new Error(
-                  "Pengambilan lokasi terlalu lama. Silakan coba kembali."
-                )
-              );
-            } else {
-              reject(
-                new Error(
-                  "Lokasi gagal diambil. Gunakan HTTPS atau localhost."
-                )
-              );
-            }
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-          }
+    function hasReusableLocation() {
+      return (
+        latestPosition &&
+        Number.isFinite(latestPosition.timestamp) &&
+        Date.now() - latestPosition.timestamp <= MAX_REUSABLE_LOCATION_AGE
+      );
+    }
+
+    function prepareLocation() {
+      if (hasReusableLocation()) {
+        return Promise.resolve(latestPosition);
+      }
+      if (locationRequest) {
+        return locationRequest;
+      }
+      if (
+        !window.MMGAttendanceGeolocation ||
+        typeof window.MMGAttendanceGeolocation.getCurrentLocation !==
+          "function"
+      ) {
+        return Promise.reject(
+          new Error("Komponen lokasi gagal dimuat. Muat ulang halaman.")
         );
-      });
+      }
+
+      locationRequest = window.MMGAttendanceGeolocation
+        .getCurrentLocation()
+        .then((position) => {
+          latestPosition = position;
+          return position;
+        })
+        .finally(() => {
+          locationRequest = null;
+        });
+      return locationRequest;
     }
 
     function canvasToBlob(canvas) {
@@ -313,7 +320,7 @@
 
       try {
         const [position, blob] = await Promise.all([
-          getCurrentLocation(),
+          prepareLocation(),
           canvasToBlob(canvas),
         ]);
         if (!locationInput) {

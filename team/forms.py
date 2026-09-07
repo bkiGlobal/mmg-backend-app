@@ -128,7 +128,10 @@ class AttendanceAdminForm(forms.ModelForm):
         css = {
             'all': ('admin/css/attendance_camera.css',),
         }
-        js = ('admin/js/attendance_camera.js',)
+        js = (
+            'admin/js/attendance_geolocation.js',
+            'admin/js/attendance_camera.js',
+        )
 
     def __init__(self, *args, **kwargs):
         request = kwargs.pop('request', None)
