@@ -389,7 +389,10 @@ UNFOLD = {
     'SITE_TITLE': 'MMG Administration',
     'SITE_HEADER': 'MMG Construction',
     'SITE_SUBHEADER': 'Project Operations & Finance',
-    'SITE_URL': '/',
+    'SITE_URL': config(
+        'ADMIN_SITE_URL',
+        default='https://mmg-construction.com/',
+    ),
     'SITE_SYMBOL': 'construction',
     # Header sidebar Unfold selalu berlatar gelap, termasuk pada tema terang,
     # sehingga logo bertinta putih dipakai untuk kedua tema.
