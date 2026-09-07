@@ -60,6 +60,7 @@ from .crons import (
     run_daily_operations,
 )
 from .media import resolve_media_path, serve_media
+from .storages import ForgivingManifestStaticFilesStorage
 from .workflows import decide_approval, submit_for_approval
 
 
@@ -563,6 +564,18 @@ class StaffMediaRouteTests(TestCase):
         self.assertTrue(
             non_staff_response.url.startswith('/admin/login/?next=')
         )
+
+
+class StaticStoragePermissionTests(SimpleTestCase):
+    def test_static_files_remain_publicly_readable(self):
+        with TemporaryDirectory() as static_root:
+            storage = ForgivingManifestStaticFilesStorage(
+                location=static_root,
+                base_url='/static/',
+            )
+
+        self.assertEqual(storage.file_permissions_mode, 0o644)
+        self.assertEqual(storage.directory_permissions_mode, 0o755)
 
 
 class CronSchedulingTests(SimpleTestCase):

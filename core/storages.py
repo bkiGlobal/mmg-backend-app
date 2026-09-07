@@ -20,3 +20,10 @@ class ForgivingManifestStaticFilesStorage(
     """
 
     manifest_strict = False
+
+    def __init__(self, *args, **kwargs):
+        # FILE_UPLOAD_* sengaja privat (0640/0750) untuk media pengguna,
+        # sedangkan berkas static harus dapat dibaca oleh proses WhiteNoise.
+        kwargs.setdefault('file_permissions_mode', 0o644)
+        kwargs.setdefault('directory_permissions_mode', 0o755)
+        super().__init__(*args, **kwargs)

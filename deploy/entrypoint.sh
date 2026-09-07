@@ -17,8 +17,8 @@ log() {
 # belum siap" sampai seluruh retry habis.
 log "memvalidasi konfigurasi Django."
 python -c "
-import django
-django.setup()
+from django.core.wsgi import get_wsgi_application
+get_wsgi_application()
 "
 
 # ── Menunggu database ────────────────────────────────────────────────────────

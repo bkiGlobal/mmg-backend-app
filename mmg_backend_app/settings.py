@@ -313,6 +313,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Upload berisi dokumen dan foto internal. Batasi izin default agar hanya user
 # aplikasi dan grupnya yang dapat membaca data langsung dari filesystem host.
+# Storage static menetapkan izin publiknya sendiri di core/storages.py.
 FILE_UPLOAD_PERMISSIONS = 0o640
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
 

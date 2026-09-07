@@ -77,14 +77,15 @@ RUN chmod +x deploy/entrypoint.sh deploy/scheduler.sh \
 # collectstatic dijalankan saat build supaya berkas ber-hash dan versi
 # terkompresinya ikut menjadi bagian image; kontainer tidak perlu menulis
 # apa pun saat start. Nilai di bawah hanya memenuhi syarat impor settings dan
-# tidak ikut tersimpan pada image karena diberikan per-perintah.
+# tidak ikut tersimpan pada image karena diberikan per-perintah. Jalankan
+# sebagai user runtime agar seluruh hasilnya pasti dapat dibaca WhiteNoise.
+USER mmg
+
 RUN SECRET_KEY=build-time-only \
     ENCRYPTED_FILEFIELD_KEY=build-time-only \
     ENCRYPTED_FILEFIELD_SALT=build-time-only \
     DEBUG=False \
     python manage.py collectstatic --noinput
-
-USER mmg
 
 EXPOSE 8000
 
