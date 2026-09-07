@@ -84,12 +84,27 @@ langsung dari internet dan proxy tepercaya selalu menimpa
 `X-Forwarded-Proto`.
 
 WhiteNoise melayani `/static/`. Upload biasa berada pada volume `media-data`
-dan perlu disajikan oleh reverse proxy pada URL `/media/`; jangan membuka file
-yang seharusnya privat tanpa aturan otorisasi yang sesuai. Endpoint encrypted
-media tetap dilayani Django dan memerlukan login. Jika reverse proxy juga
-berjalan sebagai container, mount volume `media-data` secara read-only pada
-proxy. Jika proxy berjalan langsung di host, gunakan bind mount dengan owner
-yang sesuai atau mekanisme storage bersama yang setara.
+dan URL `/media/` dilayani Django hanya untuk user admin/staff yang sudah
+login. Jangan konfigurasi reverse proxy untuk melayani `/media/` langsung,
+karena itu akan melewati pemeriksaan login. Endpoint encrypted media tetap
+dilayani Django dan menerapkan otorisasi pemilik file.
+
+Untuk bind mount Dokploy, buat direktori host sebelum deploy dan pastikan
+owner-nya sama dengan user `mmg` di container. Image saat ini menggunakan UID
+dan GID `999`; konfirmasikan pada container yang aktif dengan `id mmg`, lalu
+terapkan nilai yang ditampilkan:
+
+```bash
+install -d -m 0750 -o 999 -g 999 /var/lib/dokploy/media_mmg
+chown -R 999:999 /var/lib/dokploy/media_mmg
+find /var/lib/dokploy/media_mmg -type d -exec chmod 0750 {} +
+find /var/lib/dokploy/media_mmg -type f -exec chmod 0640 {} +
+```
+
+Di Dokploy, gunakan host path `/var/lib/dokploy/media_mmg` dan mount path
+`/app/media`, lalu lakukan redeploy setiap kali konfigurasi mount berubah.
+Entrypoint akan mencetak peringatan bila menemukan direktori media yang tidak
+dapat ditulis oleh aplikasi.
 
 ## 4. Operasional
 

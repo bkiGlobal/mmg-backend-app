@@ -506,6 +506,65 @@ class LegacyMediaTests(SimpleTestCase):
                 self.assertIsNone(resolve_media_path('private.txt'))
 
 
+@override_settings(DEBUG=False)
+class StaffMediaRouteTests(TestCase):
+    def setUp(self):
+        self.media_directory = TemporaryDirectory()
+        media_override = override_settings(
+            MEDIA_ROOT=self.media_directory.name,
+            LEGACY_MEDIA_ROOTS=[],
+        )
+        media_override.enable()
+        self.addCleanup(media_override.disable)
+        self.addCleanup(self.media_directory.cleanup)
+
+        media_file = (
+            Path(self.media_directory.name)
+            / 'leave_request'
+            / 'proof.jpeg'
+        )
+        media_file.parent.mkdir()
+        media_file.write_bytes(b'private-image')
+        self.media_url = '/media/leave_request/proof.jpeg'
+
+    def test_staff_user_can_read_existing_media(self):
+        staff = User.objects.create_user(
+            username='media-staff',
+            password='test-password',
+            is_staff=True,
+        )
+        self.client.force_login(staff)
+
+        response = self.client.get(self.media_url, secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'private-image',
+        )
+        self.assertEqual(response['Cache-Control'], 'private, no-store')
+        self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
+
+    def test_anonymous_and_non_staff_users_are_redirected_to_admin_login(self):
+        anonymous_response = self.client.get(self.media_url, secure=True)
+        self.assertEqual(anonymous_response.status_code, 302)
+        self.assertTrue(
+            anonymous_response.url.startswith('/admin/login/?next=')
+        )
+
+        user = User.objects.create_user(
+            username='media-non-staff',
+            password='test-password',
+        )
+        self.client.force_login(user)
+        non_staff_response = self.client.get(self.media_url, secure=True)
+
+        self.assertEqual(non_staff_response.status_code, 302)
+        self.assertTrue(
+            non_staff_response.url.startswith('/admin/login/?next=')
+        )
+
+
 class CronSchedulingTests(SimpleTestCase):
     def test_daily_job_cleans_database_connections(self):
         with TemporaryDirectory() as lock_dir, override_settings(

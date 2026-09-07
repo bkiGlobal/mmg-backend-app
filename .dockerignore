@@ -22,8 +22,11 @@ __pycache__/
 .vscode/
 .idea/
 
-# Hasil collectstatic dibuat ulang saat build; media adalah volume runtime.
+# Hasil collectstatic di root dibuat ulang saat build; aset sumber aplikasi
+# harus tetap masuk build context agar collectstatic dapat menemukannya.
 static/
+!team/static/
+!team/static/**
 media/
 
 # Berkas unggahan dan cadangan tidak boleh masuk image

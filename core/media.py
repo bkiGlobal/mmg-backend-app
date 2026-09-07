@@ -2,6 +2,7 @@ import mimetypes
 from pathlib import Path, PurePosixPath
 
 from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
 from django.http import FileResponse, Http404
 
 
@@ -50,7 +51,7 @@ def resolve_media_path(path):
 
 
 def serve_media(request, path):
-    """Development-only media response with legacy upload compatibility."""
+    """Serve media from the current or allow-listed legacy storage."""
     media_path = resolve_media_path(path)
     if media_path is None:
         raise Http404('Media tidak ditemukan.')
@@ -63,5 +64,12 @@ def serve_media(request, path):
     )
     if encoding:
         response.headers['Content-Encoding'] = encoding
+    response.headers['Cache-Control'] = 'private, no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
+
+
+@staff_member_required(login_url='admin:login')
+def serve_staff_media(request, path):
+    """Serve sensitive uploads only to authenticated, active admin staff."""
+    return serve_media(request, path)

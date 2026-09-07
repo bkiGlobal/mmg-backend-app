@@ -311,6 +311,11 @@ EXPORT_JOBS_RUN_INLINE = config(
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Upload berisi dokumen dan foto internal. Batasi izin default agar hanya user
+# aplikasi dan grupnya yang dapat membaca data langsung dari filesystem host.
+FILE_UPLOAD_PERMISSIONS = 0o640
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+
 # Seluruh upload gambar pada AuditModel dikompresi sebelum masuk storage.
 IMAGE_UPLOAD_MAX_WIDTH = config(
     'IMAGE_UPLOAD_MAX_WIDTH',

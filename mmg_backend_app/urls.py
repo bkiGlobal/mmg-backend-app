@@ -22,7 +22,7 @@ from django.views.generic.base import RedirectView
 from django_encrypted_filefield.constants import FETCH_URL_NAME
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView
 from core.encrypted_media import AuthenticatedEncryptedMediaView
-from core.media import serve_media
+from core.media import serve_staff_media
 from core.views import CustomTokenRefreshView
 
 urlpatterns = [
@@ -41,16 +41,12 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
     path('api/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
+    re_path(
+        r'^media/(?P<path>.*)$',
+        serve_staff_media,
+        name='staff-media',
+    ),
 ]
-
-if settings.DEBUG:
-    urlpatterns += [
-        re_path(
-            r'^media/(?P<path>.*)$',
-            serve_media,
-            name='development-media',
-        ),
-    ]
 
 urlpatterns += static(
     settings.STATIC_URL,

@@ -21,7 +21,9 @@ error_proof_photo
 payment_request_project
 boq_project
 material_project
-static
+# Hanya hasil collectstatic di root proyek yang diabaikan. Aset sumber di
+# <app>/static harus tetap dilacak Git agar tersedia saat build Docker.
+/static/
 id_worker
 finance_proof_photo
 petty_cash_proof_photo

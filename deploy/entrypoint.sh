@@ -12,6 +12,15 @@ log() {
     printf '[entrypoint] %s\n' "$*"
 }
 
+# Pisahkan kegagalan import/settings dari kegagalan koneksi database. Tanpa
+# pemeriksaan ini dependency yang hilang akan tampak keliru sebagai "database
+# belum siap" sampai seluruh retry habis.
+log "memvalidasi konfigurasi Django."
+python -c "
+import django
+django.setup()
+"
+
 # ── Menunggu database ────────────────────────────────────────────────────────
 # Pemeriksaan dilakukan lewat Django agar DATABASE_URL diurai dengan aturan
 # yang sama seperti aplikasi, termasuk ketika memakai PostGIS.
@@ -52,11 +61,28 @@ seed_default_media() {
     local destination="$APP_HOME/media/default_photo/default_profile.png"
 
     if [ -f "$source" ] && [ ! -f "$destination" ]; then
-        mkdir -p "$(dirname "$destination")"
-        cp "$source" "$destination"
+        if ! mkdir -p "$(dirname "$destination")" \
+            || ! cp "$source" "$destination"; then
+            log "WARNING: gambar profil bawaan tidak dapat ditulis ke volume media."
+            return 0
+        fi
         log "gambar profil bawaan disalin ke volume media."
     fi
 }
+
+check_media_permissions() {
+    local unwritable_directory
+
+    unwritable_directory="$(
+        find "$APP_HOME/media" -type d ! -writable -print -quit
+    )"
+    if [ -n "$unwritable_directory" ]; then
+        log "WARNING: direktori media tidak dapat ditulis: $unwritable_directory"
+        log "WARNING: perbaiki owner bind mount agar sesuai UID/GID user mmg."
+    fi
+}
+
+check_media_permissions
 
 if [ "${SEED_DEFAULT_MEDIA:-1}" = "1" ]; then
     seed_default_media

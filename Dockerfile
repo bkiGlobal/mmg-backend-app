@@ -39,6 +39,12 @@ ENV PYTHONUNBUFFERED=1 \
     TZ=Asia/Makassar \
     APP_HOME=/app
 
+# UID/GID dibuat stabil karena deployment Dokploy memakai bind mount host.
+# Dengan nilai tetap, ownership volume tidak berubah diam-diam saat image
+# dasar atau daftar paket diperbarui.
+ARG APP_UID=999
+ARG APP_GID=999
+
 # gdal-bin menarik libgdal beserta PROJ sesuai versi Debian yang dipakai,
 # sehingga nama paket berversi tidak perlu dipatok di sini. libmagic1
 # dibutuhkan python-magic, dan libpq5 dibutuhkan psycopg varian murni Python.
@@ -57,8 +63,8 @@ RUN pip install --no-index --find-links=/wheels /wheels/* \
     && rm -rf /wheels
 
 # Berjalan sebagai user biasa; root tidak diperlukan setelah paket terpasang.
-RUN groupadd --system mmg \
-    && useradd --system --gid mmg --home-dir "$APP_HOME" \
+RUN groupadd --system --gid "$APP_GID" mmg \
+    && useradd --system --uid "$APP_UID" --gid mmg --home-dir "$APP_HOME" \
        --shell /usr/sbin/nologin mmg
 
 WORKDIR $APP_HOME

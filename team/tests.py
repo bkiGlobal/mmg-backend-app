@@ -6,8 +6,14 @@ from tempfile import TemporaryDirectory
 from django.contrib import admin
 from django.contrib.auth.models import Permission, User
 from django.contrib.gis.geos import Point
+from django.contrib.staticfiles import finders
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import (
+    RequestFactory,
+    SimpleTestCase,
+    TestCase,
+    override_settings,
+)
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
@@ -35,6 +41,16 @@ from .models import (
 )
 from .holidays import fetch_indonesian_holidays, sync_indonesian_holidays
 from .services import generate_daily_attendance
+
+
+class AttendanceStaticAssetsTests(SimpleTestCase):
+    def test_camera_assets_are_available_to_collectstatic(self):
+        for asset in (
+            'admin/css/attendance_camera.css',
+            'admin/js/attendance_camera.js',
+        ):
+            with self.subTest(asset=asset):
+                self.assertIsNotNone(finders.find(asset))
 
 
 class SoftDeleteTests(TestCase):
@@ -571,6 +587,7 @@ class HolidayAdminCalendarTests(TestCase):
         response = self.client.get(
             self.url,
             {'cal_year': '2026', 'cal_month': '8'},
+            secure=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -580,6 +597,7 @@ class HolidayAdminCalendarTests(TestCase):
         response = self.client.get(
             self.url,
             {'cal_year': '2026', 'cal_month': '8'},
+            secure=True,
         )
 
         self.assertContains(response, 'value="2026"')
@@ -590,6 +608,7 @@ class HolidayAdminCalendarTests(TestCase):
             reverse('admin:team_holiday_sync'),
             {'year': '2026', 'month': '8', 'scope': 'month'},
             follow=True,
+            secure=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -597,7 +616,10 @@ class HolidayAdminCalendarTests(TestCase):
         self.assertEqual(holiday.source, HolidaySource.NATIONAL)
 
     def test_sync_rejects_get_request(self):
-        response = self.client.get(reverse('admin:team_holiday_sync'))
+        response = self.client.get(
+            reverse('admin:team_holiday_sync'),
+            secure=True,
+        )
 
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Holiday.objects.exists())
@@ -645,7 +667,8 @@ class AttendanceHeatmapVisibilityTests(TestCase):
 
     def test_heatmap_lists_staff_but_not_client(self):
         response = self.client.get(
-            reverse('admin:team_attendance_changelist')
+            reverse('admin:team_attendance_changelist'),
+            secure=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -662,7 +685,8 @@ class AttendanceHeatmapVisibilityTests(TestCase):
         self.client_profile.user.user_permissions.add(permission)
 
         response = self.client.get(
-            reverse('admin:team_attendance_changelist')
+            reverse('admin:team_attendance_changelist'),
+            secure=True,
         )
 
         self.assertEqual(response.status_code, 200)
